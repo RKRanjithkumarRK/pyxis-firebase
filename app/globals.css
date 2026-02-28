@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #04050a;
+  --s1: #080c14;
+  --s2: #0c1220;
+  --border: #141e2e;
+  --b2: #1e2e44;
+  --g: #00ffa3;
+  --b: #4d9fff;
+  --p: #a78bfa;
+  --o: #ff7849;
+  --text: #e8f0fe;
+  --t2: #8899aa;
+  --t3: #556677;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;overflow:hidden}
+
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
+
+/* Markdown */
+.md p{margin-bottom:.6rem}
+.md p:last-child{margin-bottom:0}
+.md h1,.md h2,.md h3{color:#fff;font-weight:600;margin:.8rem 0 .4rem}
+.md h1{font-size:1.25rem}.md h2{font-size:1.1rem}.md h3{font-size:1rem}
+.md code{background:#0a0f1a;border:1px solid var(--b2);border-radius:4px;padding:1px 6px;font-family:'JetBrains Mono',monospace;font-size:.82em;color:var(--g)}
+.md pre{background:#060a10;border:1px solid var(--border);border-radius:8px;padding:1rem;overflow-x:auto;margin:.6rem 0}
+.md pre code{background:transparent;border:none;padding:0;color:#cdd6f4;font-size:.85rem}
+.md ul,.md ol{padding-left:1.4rem;margin:.4rem 0}
+.md li{margin:.2rem 0}
+.md blockquote{border-left:3px solid var(--g);padding-left:.8rem;color:var(--t2);margin:.6rem 0;font-style:italic}
+.md a{color:var(--b);text-decoration:none}.md a:hover{text-decoration:underline}
+.md table{width:100%;border-collapse:collapse;margin:.6rem 0}
+.md th,.md td{border:1px solid var(--b2);padding:.4rem .7rem;text-align:left}
+.md th{background:var(--s1);font-weight:600}
+.md hr{border:none;border-top:1px solid var(--border);margin:.8rem 0}
+
+/* Typing dots */
+@keyframes dot{0%,60%,100%{opacity:.3;transform:scale(.8)}30%{opacity:1;transform:scale(1)}}
+.dot{display:inline-block;animation:dot 1.4s ease-in-out infinite}
+.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+
+/* Message slide in */
+@keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.msg-in{animation:msgIn .2s ease-out}
+
+/* Glow input */
+.input-wrap:focus-within{box-shadow:0 0 0 1px rgba(0,255,163,.2),0 0 20px rgba(0,255,163,.05)}
