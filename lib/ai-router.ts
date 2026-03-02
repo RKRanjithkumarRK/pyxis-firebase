@@ -12,8 +12,8 @@ export const MODELS = {
   'claude-haiku':    { provider: 'anthropic', id: 'claude-3-haiku-20240307',       name: 'Claude 3 Haiku',    badge: '🔶 Fast',    free: false },
   'gpt-4o':          { provider: 'openai',    id: 'gpt-4o',                        name: 'GPT-4o',            badge: '🔷 OpenAI',  free: false },
   'gpt-4o-mini':     { provider: 'openai',    id: 'gpt-4o-mini',                   name: 'GPT-4o Mini',       badge: '🔷 Fast',    free: false },
-  'gemini-pro':      { provider: 'gemini',    id: 'gemini-pro',                    name: 'Gemini Pro',        badge: '🔮 Google',  free: false },
-  'gemini-flash':    { provider: 'gemini',    id: 'gemini-pro',                    name: 'Gemini Flash',      badge: '🔮 Fast',    free: false },
+  'gemini-pro':      { provider: 'gemini',    id: 'gemini-2.0-flash',              name: 'Gemini 2.0 Flash',  badge: '🔮 Google',  free: false },
+  'gemini-flash':    { provider: 'gemini',    id: 'gemini-2.0-flash-lite',         name: 'Gemini 2.0 Lite',   badge: '🔮 Fast',    free: false },
 } as const
 
 export type ModelKey = keyof typeof MODELS
