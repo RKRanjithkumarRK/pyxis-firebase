@@ -3,8 +3,6 @@
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { Copy, Check, RefreshCw, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { Message as MessageType } from '@/types'
 
@@ -26,32 +24,21 @@ function PyxisIcon() {
   )
 }
 
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-  return (
-    <button
-      onClick={handleCopy}
-      className="flex items-center gap-1.5 text-xs text-[#9ca3af] hover:text-white transition-colors"
-    >
-      {copied ? <Check size={12} /> : <Copy size={12} />}
-      {copied ? 'Copied!' : 'Copy code'}
-    </button>
-  )
-}
-
 function CodeBlock({ node, inline, className, children, ...props }: any) {
+  const [copied, setCopied] = useState(false)
   const match = /language-(\w+)/.exec(className || '')
   const language = match ? match[1] : ''
   const code = String(children).replace(/\n$/, '')
 
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   if (inline) {
     return (
-      <code className="px-1.5 py-0.5 rounded-md bg-white/10 font-mono text-[0.85em]" {...props}>
+      <code className="px-1.5 py-0.5 rounded-md bg-white/10 font-mono text-[0.85em] text-text-primary" {...props}>
         {children}
       </code>
     )
@@ -59,26 +46,21 @@ function CodeBlock({ node, inline, className, children, ...props }: any) {
 
   return (
     <div className="relative my-4 rounded-xl overflow-hidden border border-white/10">
+      {/* Header bar with language + copy button */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#161616]">
-        <span className="text-xs text-[#9ca3af] font-mono">{language || 'code'}</span>
-        <CopyButton text={code} />
+        <span className="text-xs text-[#9ca3af] font-mono select-none">{language || 'code'}</span>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 text-xs text-[#9ca3af] hover:text-white transition-colors"
+        >
+          {copied ? <Check size={12} /> : <Copy size={12} />}
+          {copied ? 'Copied!' : 'Copy code'}
+        </button>
       </div>
-      <SyntaxHighlighter
-        language={language || 'text'}
-        style={oneDark}
-        customStyle={{
-          margin: 0,
-          borderRadius: 0,
-          fontSize: '0.875rem',
-          lineHeight: '1.6',
-          background: '#1e1e1e',
-          padding: '1rem',
-        }}
-        PreTag="div"
-        {...props}
-      >
-        {code}
-      </SyntaxHighlighter>
+      {/* Code content */}
+      <pre className="overflow-x-auto bg-[#1e1e1e] px-4 py-4 text-sm leading-relaxed" {...props}>
+        <code className="font-mono text-[#e6edf3]">{code}</code>
+      </pre>
     </div>
   )
 }
@@ -127,7 +109,7 @@ export default function Message({ message, onRegenerate, isLast }: Props) {
             <div className="markdown-body">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
-                components={{ code: CodeBlock }}
+                components={{ code: CodeBlock as any }}
               >
                 {message.content}
               </ReactMarkdown>
