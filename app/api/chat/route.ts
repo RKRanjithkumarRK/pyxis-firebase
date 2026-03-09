@@ -46,7 +46,9 @@ function transformToSSE(response: Response): ReadableStream {
   })
 }
 
-async function callProvider(url: string, headers: Record<string, string>, body: object): Promise<Response | null> {
+type ProviderResult = { res: Response | null; status: number }
+
+async function callProvider(url: string, headers: Record<string, string>, body: object): Promise<ProviderResult> {
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -56,12 +58,12 @@ async function callProvider(url: string, headers: Record<string, string>, body: 
     if (!res.ok) {
       const err = await res.text()
       console.warn(`[chat] ${url.split('/')[2]} error ${res.status}:`, err.slice(0, 120))
-      return null
+      return { res: null, status: res.status }
     }
-    return res
+    return { res, status: res.status }
   } catch (err) {
     console.warn(`[chat] ${url.split('/')[2]} threw:`, err)
-    return null
+    return { res: null, status: 0 }
   }
 }
 
@@ -112,20 +114,36 @@ export async function POST(req: NextRequest) {
     ...messages,
   ]
 
-  /* ── 1. GOOGLE AI STUDIO — all Google keys, rotate on 429 ── */
-  if (googleKeys.length > 0 && isGeminiModel(model)) {
+  /* ── 1. GOOGLE AI STUDIO — skip entirely if DISABLE_GOOGLE=true or quota exhausted ── */
+  if (googleKeys.length > 0 && isGeminiModel(model) && process.env.DISABLE_GOOGLE !== 'true') {
     const requested  = (model === 'openrouter/free' || !model) ? 'gemini-2.5-flash' : model
     const candidates = [...new Set([requested, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'])]
 
+    let allKeysQuotaExhausted = true
     for (const gKey of googleKeys) {
-      for (const gModel of candidates) {
-        const res = await callProvider(
-          'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-          { Authorization: `Bearer ${gKey}` },
-          { model: gModel, messages: allMessages, stream: true, max_tokens: maxTokens }
-        )
-        if (res) return sseResponse(res, gModel)
+      // Try first model with this key — if 429, skip remaining models (key is exhausted)
+      const { res, status } = await callProvider(
+        'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+        { Authorization: `Bearer ${gKey}` },
+        { model: candidates[0], messages: allMessages, stream: true, max_tokens: maxTokens }
+      )
+      if (res) return sseResponse(res, candidates[0])
+      if (status !== 429) {
+        // Non-quota error (e.g. 400/500) — try remaining models for this key
+        allKeysQuotaExhausted = false
+        for (const gModel of candidates.slice(1)) {
+          const { res: r2 } = await callProvider(
+            'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+            { Authorization: `Bearer ${gKey}` },
+            { model: gModel, messages: allMessages, stream: true, max_tokens: maxTokens }
+          )
+          if (r2) return sseResponse(r2, gModel)
+        }
       }
+      // 429 on this key → immediately try next key
+    }
+    if (allKeysQuotaExhausted) {
+      console.warn('[chat] All Google keys quota exhausted — falling through to other providers')
     }
   }
 
@@ -137,7 +155,7 @@ export async function POST(req: NextRequest) {
       'Qwen/Qwen2.5-72B-Instruct-Turbo',
     ]
     for (const tModel of togetherModels) {
-      const res = await callProvider(
+      const { res } = await callProvider(
         'https://api.together.xyz/v1/chat/completions',
         { Authorization: `Bearer ${togetherKey}` },
         { model: tModel, messages: allMessages, stream: true, max_tokens: maxTokens }
@@ -150,7 +168,7 @@ export async function POST(req: NextRequest) {
   if (mistralKey) {
     const mistralModels = ['mistral-small-latest', 'open-mistral-nemo']
     for (const mModel of mistralModels) {
-      const res = await callProvider(
+      const { res } = await callProvider(
         'https://api.mistral.ai/v1/chat/completions',
         { Authorization: `Bearer ${mistralKey}` },
         { model: mModel, messages: allMessages, stream: true, max_tokens: maxTokens }
@@ -163,7 +181,7 @@ export async function POST(req: NextRequest) {
   if (groqKey) {
     const groqModels = ['llama-3.3-70b-versatile', 'llama3-70b-8192', 'gemma2-9b-it']
     for (const gModel of groqModels) {
-      const res = await callProvider(
+      const { res } = await callProvider(
         'https://api.groq.com/openai/v1/chat/completions',
         { Authorization: `Bearer ${groqKey}` },
         { model: gModel, messages: allMessages, stream: true, max_tokens: Math.min(maxTokens, 8192) }
@@ -178,7 +196,7 @@ export async function POST(req: NextRequest) {
       ? ['google/gemini-2.0-flash-001', 'meta-llama/llama-3.3-70b-instruct:free', 'google/gemma-3-27b-it:free']
       : [model]
     for (const orModel of orModels) {
-      const res = await callProvider(
+      const { res } = await callProvider(
         'https://openrouter.ai/api/v1/chat/completions',
         { Authorization: `Bearer ${orKey}`, 'HTTP-Referer': appUrl, 'X-Title': 'Pyxis' },
         { model: orModel, messages: allMessages, stream: true, max_tokens: maxTokens }
@@ -188,10 +206,10 @@ export async function POST(req: NextRequest) {
   }
 
   /* ── 6. GOOGLE FALLBACK for non-Gemini models (no OR key) ── */
-  if (googleKeys.length > 0 && !isGeminiModel(model)) {
+  if (googleKeys.length > 0 && !isGeminiModel(model) && process.env.DISABLE_GOOGLE !== 'true') {
     for (const gKey of googleKeys) {
       for (const gModel of ['gemini-2.5-flash', 'gemini-2.0-flash']) {
-        const res = await callProvider(
+        const { res } = await callProvider(
           'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
           { Authorization: `Bearer ${gKey}` },
           { model: gModel, messages: allMessages, stream: true, max_tokens: maxTokens }
