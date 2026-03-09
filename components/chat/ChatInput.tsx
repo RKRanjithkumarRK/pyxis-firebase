@@ -10,11 +10,13 @@ interface Props {
   onStop?: () => void
   onVoiceMode: () => void
   disabled?: boolean
+  prefill?: string | null
+  onPrefillConsumed?: () => void
 }
 
 type MicState = 'idle' | 'requesting' | 'listening' | 'denied' | 'unsupported'
 
-export default function ChatInput({ onSend, onStop, onVoiceMode, disabled }: Props) {
+export default function ChatInput({ onSend, onStop, onVoiceMode, disabled, prefill, onPrefillConsumed }: Props) {
   const [input, setInput] = useState('')
   const [attachment, setAttachment] = useState<{ name: string; content: string } | null>(null)
   const [micState, setMicState] = useState<MicState>('idle')
@@ -35,6 +37,19 @@ export default function ChatInput({ onSend, onStop, onVoiceMode, disabled }: Pro
   useEffect(() => {
     return () => { recognitionRef.current?.stop() }
   }, [])
+
+  // Consume prefill (from message edit)
+  useEffect(() => {
+    if (prefill != null) {
+      setInput(prefill)
+      onPrefillConsumed?.()
+      setTimeout(() => {
+        textareaRef.current?.focus()
+        const len = prefill.length
+        textareaRef.current?.setSelectionRange(len, len)
+      }, 50)
+    }
+  }, [prefill]) // eslint-disable-line
 
   const handleSubmit = () => {
     const trimmed = input.trim()

@@ -26,6 +26,7 @@ export default function ChatView({ conversationId }: Props) {
   const { setConversations } = useSidebar()
   const { getToken } = useAuth()
   const [voiceMode, setVoiceMode] = useState(false)
+  const [editContent, setEditContent] = useState<string | null>(null)
   const currentConvIdRef = useRef<string | null>(null)
 
   // Sync ref with state
@@ -235,6 +236,12 @@ export default function ChatView({ conversationId }: Props) {
     abortController.current?.abort()
   }, [abortController])
 
+  // Edit a user message: slice history back to that point, prefill input
+  const handleEditMessage = useCallback((content: string, index: number) => {
+    setMessages(prev => prev.slice(0, index))
+    setEditContent(content)
+  }, [setMessages])
+
   const handleRegenerate = useCallback(async () => {
     if (isStreaming) return
     const token = await getToken()
@@ -304,7 +311,7 @@ export default function ChatView({ conversationId }: Props) {
       {messages.length === 0 ? (
         <WelcomeScreen onSend={handleSend} />
       ) : (
-        <MessageList onRegenerate={handleRegenerate} />
+        <MessageList onRegenerate={handleRegenerate} onEdit={handleEditMessage} />
       )}
 
       {/* Input */}
@@ -312,6 +319,8 @@ export default function ChatView({ conversationId }: Props) {
         onSend={handleSend}
         onStop={handleStop}
         onVoiceMode={() => setVoiceMode(true)}
+        prefill={editContent}
+        onPrefillConsumed={() => setEditContent(null)}
       />
     </div>
   )

@@ -39,6 +39,21 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ id: ref.id })
 }
 
+export async function PATCH(request: NextRequest) {
+  const user = await verifyToken(request)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { id, title } = await request.json()
+  if (!id || !title?.trim()) return NextResponse.json({ error: 'Missing id or title' }, { status: 400 })
+
+  await adminDb.doc(`users/${user.uid}/conversations/${id}`).update({
+    title: title.trim(),
+    updatedAt: new Date().toISOString(),
+  })
+
+  return NextResponse.json({ success: true })
+}
+
 export async function DELETE(request: NextRequest) {
   const user = await verifyToken(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

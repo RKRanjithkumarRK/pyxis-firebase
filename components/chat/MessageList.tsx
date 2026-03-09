@@ -19,9 +19,10 @@ function PyxisIcon() {
 
 interface Props {
   onRegenerate?: () => void
+  onEdit?: (content: string, index: number) => void
 }
 
-export default function MessageList({ onRegenerate }: Props) {
+export default function MessageList({ onRegenerate, onEdit }: Props) {
   const { messages, isStreaming } = useChat()
   const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -43,12 +44,14 @@ export default function MessageList({ onRegenerate }: Props) {
   return (
     <div ref={containerRef} className="flex-1 overflow-y-auto">
       <div className="py-6 pb-2">
-        {messages.map(msg => (
+        {messages.map((msg, index) => (
           <Message
             key={msg.id}
             message={msg}
             isLast={msg.id === lastAssistantId && !isStreaming}
             onRegenerate={onRegenerate}
+            index={index}
+            onEdit={onEdit}
           />
         ))}
         {isStreaming && messages.length > 0 && messages[messages.length - 1].role === 'user' && (

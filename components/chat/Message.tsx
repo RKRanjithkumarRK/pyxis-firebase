@@ -30,7 +30,7 @@ SyntaxHighlighter.registerLanguage('json', json)
 SyntaxHighlighter.registerLanguage('css', css)
 SyntaxHighlighter.registerLanguage('sql', sql)
 SyntaxHighlighter.registerLanguage('markdown', markdown)
-import { Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Play } from 'lucide-react'
+import { Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Play, Loader2, Pencil } from 'lucide-react'
 import { Message as MessageType } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 
@@ -38,6 +38,31 @@ interface Props {
   message: MessageType
   onRegenerate?: () => void
   isLast?: boolean
+  index?: number
+  onEdit?: (content: string, index: number) => void
+}
+
+const RUNNABLE_LANGS = new Set(['python', 'javascript', 'js', 'typescript', 'ts', 'bash', 'shell', 'sh'])
+const JS_LANGS = new Set(['javascript', 'js'])
+
+// Run JS in a sandboxed Web Worker (no server needed)
+async function runJavaScript(code: string): Promise<string> {
+  return new Promise((resolve) => {
+    const workerSrc = `
+      const _logs=[];
+      const _con={log:(...a)=>_logs.push(a.map(String).join(' ')),error:(...a)=>_logs.push('[err] '+a.map(String).join(' ')),warn:(...a)=>_logs.push('[warn] '+a.map(String).join(' '))};
+      try{
+        (new Function('console','Math','Date','JSON','Array','Object','String','Number','Boolean','parseInt','parseFloat','isNaN','isFinite',${JSON.stringify(code)}))(_con,Math,Date,JSON,Array,Object,String,Number,Boolean,parseInt,parseFloat,isNaN,isFinite);
+        postMessage({ok:true,out:_logs.join('\\n')||'(no output)'});
+      }catch(e){postMessage({ok:false,out:'❌ '+e.message});}
+    `
+    const blob = new Blob([workerSrc], { type: 'application/javascript' })
+    const url = URL.createObjectURL(blob)
+    const worker = new Worker(url)
+    const timer = setTimeout(() => { worker.terminate(); URL.revokeObjectURL(url); resolve('❌ Timed out (5s)') }, 5000)
+    worker.onmessage = (e) => { clearTimeout(timer); worker.terminate(); URL.revokeObjectURL(url); resolve(e.data.out) }
+    worker.onerror = (e) => { clearTimeout(timer); worker.terminate(); URL.revokeObjectURL(url); resolve('❌ ' + e.message) }
+  })
 }
 
 function PyxisIcon() {
@@ -54,6 +79,8 @@ function PyxisIcon() {
 
 function CodeBlock({ language, code }: { language: string; code: string }) {
   const [copied, setCopied] = useState(false)
+  const [isRunning, setIsRunning] = useState(false)
+  const [output, setOutput] = useState<string | null>(null)
   const { resolvedTheme } = useTheme()
   const isLight = resolvedTheme === 'light'
 
@@ -63,12 +90,43 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const handleRun = async () => {
+    const lang = language?.toLowerCase() || ''
+    if (!RUNNABLE_LANGS.has(lang)) {
+      setOutput(`⚠ "${language || 'unknown'}" can't be executed here.\nSupported: Python, JavaScript, TypeScript, Bash`)
+      return
+    }
+    setIsRunning(true)
+    setOutput(null)
+    try {
+      let result: string
+      if (JS_LANGS.has(lang)) {
+        // Run JavaScript in sandboxed Web Worker (instant, no API)
+        result = await runJavaScript(code)
+      } else {
+        // Run Python / TypeScript / Bash via server-side Judge0
+        const res = await fetch('/api/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ language: lang, code }),
+        })
+        const data = await res.json()
+        result = data.error ? `❌ ${data.error}` : (data.output || '(no output)')
+      }
+      setOutput(result)
+    } catch {
+      setOutput('❌ Failed to run code')
+    } finally {
+      setIsRunning(false)
+    }
+  }
+
   return (
     <div
       className="relative my-4 rounded-xl overflow-hidden"
       style={{ border: `1px solid var(--border)` }}
     >
-      {/* Header — ChatGPT style */}
+      {/* Header */}
       <div
         className="flex items-center justify-between px-4 py-2.5"
         style={{
@@ -76,14 +134,12 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
           borderBottom: isLight ? 'none' : `1px solid var(--border)`,
         }}
       >
-        {/* Left: </> icon + language */}
         <div className="flex items-center gap-1.5 select-none">
           <span style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>{'</>'}</span>
           <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'monospace', textTransform: 'capitalize' }}>
             {language || 'code'}
           </span>
         </div>
-        {/* Right: Copy + Run */}
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopy}
@@ -102,22 +158,27 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
             {copied ? 'Copied' : 'Copy'}
           </button>
           <button
+            onClick={handleRun}
+            disabled={isRunning}
             className="flex items-center gap-1.5 transition-colors"
             style={{
               fontSize: 12,
-              color: 'var(--text-tertiary)',
+              color: isRunning ? 'var(--accent)' : 'var(--text-tertiary)',
               background: 'var(--surface)',
               border: '1px solid var(--border)',
               borderRadius: 6,
               padding: '3px 10px',
-              cursor: 'pointer',
+              cursor: isRunning ? 'default' : 'pointer',
+              opacity: isRunning ? 0.7 : 1,
             }}
           >
-            <Play size={12} />
-            Run
+            {isRunning ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+            {isRunning ? 'Running…' : 'Run'}
           </button>
         </div>
       </div>
+
+      {/* Code */}
       <SyntaxHighlighter
         language={language || 'text'}
         style={isLight ? oneLight : oneDark}
@@ -134,11 +195,34 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
       >
         {code}
       </SyntaxHighlighter>
+
+      {/* Output panel */}
+      {(output !== null || isRunning) && (
+        <div
+          style={{
+            background: isLight ? '#ebebeb' : '#0d0d0d',
+            borderTop: `1px solid var(--border)`,
+            padding: '0.6rem 1rem 0.75rem',
+            fontFamily: 'monospace',
+            fontSize: '0.8125rem',
+            color: isLight ? '#333' : '#bbb',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            maxHeight: 200,
+            overflowY: 'auto',
+          }}
+        >
+          <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            {isRunning ? '⏳ running…' : 'output'}
+          </div>
+          {isRunning ? '' : output}
+        </div>
+      )}
     </div>
   )
 }
 
-export default function Message({ message, onRegenerate, isLast }: Props) {
+export default function Message({ message, onRegenerate, isLast, index, onEdit }: Props) {
   const [hovered, setHovered] = useState(false)
   const [copied, setCopied] = useState(false)
   const [liked, setLiked] = useState<boolean | null>(null)
@@ -153,10 +237,20 @@ export default function Message({ message, onRegenerate, isLast }: Props) {
   if (isUser) {
     return (
       <div
-        className="msg-in flex justify-end w-full max-w-3xl mx-auto px-4 py-1.5"
+        className="msg-in flex justify-end items-end gap-2 w-full max-w-3xl mx-auto px-4 py-1.5"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
+        {/* Edit button — appears to the left of the bubble on hover */}
+        {onEdit && index !== undefined && (
+          <button
+            onClick={() => onEdit(message.content, index)}
+            className={`p-1.5 rounded-lg text-text-tertiary hover:text-text-secondary hover:bg-surface-hover transition-all ${hovered ? 'opacity-100' : 'opacity-0'}`}
+            title="Edit message"
+          >
+            <Pencil size={14} />
+          </button>
+        )}
         <div className="max-w-[80%] px-5 py-3.5 rounded-3xl bg-surface text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap break-words">
           {message.content}
           {message.imageUrl && (
@@ -183,7 +277,6 @@ export default function Message({ message, onRegenerate, isLast }: Props) {
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  // Prevent react-markdown from wrapping CodeBlock in <pre>
                   pre({ children }) {
                     return <>{children}</>
                   },
@@ -193,7 +286,6 @@ export default function Message({ message, onRegenerate, isLast }: Props) {
                     const code = String(children).replace(/\n$/, '')
                     const isBlock = code.includes('\n') || !!language
 
-                    // Inline code: single word/expression, no newlines, no language
                     if (!isBlock) {
                       return (
                         <code

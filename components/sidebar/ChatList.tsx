@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useSidebar } from '@/contexts/SidebarContext'
 import { useChat } from '@/contexts/ChatContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { Trash2, MoreHorizontal } from 'lucide-react'
+import { Trash2, MoreHorizontal, Pencil } from 'lucide-react'
 import { useState } from 'react'
 import { Conversation } from '@/types'
 import toast from 'react-hot-toast'
@@ -43,6 +43,8 @@ export default function ChatList() {
   const router = useRouter()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [menuId, setMenuId] = useState<string | null>(null)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
 
   const filtered = searchQuery
     ? conversations.filter(c => c.title.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -60,14 +62,44 @@ export default function ChatList() {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
-      // Update state without page reload
       setConversations(conversations.filter(c => c.id !== id))
       if (activeConversationId === id) {
         setActiveConversationId(null)
         setMessages([])
         router.push('/chat')
       }
+      toast.success('Deleted')
     } catch { toast.error('Failed to delete') }
+  }
+
+  const startRename = (conv: Conversation, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setMenuId(null)
+    setRenamingId(conv.id)
+    setRenameValue(conv.title)
+  }
+
+  const commitRename = async (id: string) => {
+    const trimmed = renameValue.trim()
+    setRenamingId(null)
+    if (!trimmed) return
+    const original = conversations.find(c => c.id === id)?.title
+    if (trimmed === original) return
+    // Optimistic update
+    setConversations(conversations.map(c => c.id === id ? { ...c, title: trimmed } : c))
+    try {
+      const token = await getToken()
+      if (!token) return
+      await fetch('/api/conversations', {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, title: trimmed }),
+      })
+    } catch {
+      // Revert on failure
+      setConversations(conversations.map(c => c.id === id ? { ...c, title: original || c.title } : c))
+      toast.error('Failed to rename')
+    }
   }
 
   return (
@@ -80,15 +112,33 @@ export default function ChatList() {
               key={conv.id}
               onMouseEnter={() => setHoveredId(conv.id)}
               onMouseLeave={() => { setHoveredId(null); setMenuId(null) }}
-              onClick={() => router.push(`/chat/${conv.id}`)}
+              onClick={() => renamingId !== conv.id && router.push(`/chat/${conv.id}`)}
               className={`group relative flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-sm transition-colors ${
                 activeConversationId === conv.id
                   ? 'bg-surface-hover text-text-primary'
                   : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
               }`}
             >
-              <span className="truncate flex-1">{conv.title}</span>
-              {(hoveredId === conv.id || menuId === conv.id) && (
+              {/* Title or rename input */}
+              {renamingId === conv.id ? (
+                <input
+                  autoFocus
+                  value={renameValue}
+                  onChange={e => setRenameValue(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { e.preventDefault(); commitRename(conv.id) }
+                    if (e.key === 'Escape') setRenamingId(null)
+                  }}
+                  onBlur={() => commitRename(conv.id)}
+                  onClick={e => e.stopPropagation()}
+                  className="flex-1 bg-transparent outline-none text-text-primary text-sm border-b border-accent pb-0.5"
+                />
+              ) : (
+                <span className="truncate flex-1">{conv.title}</span>
+              )}
+
+              {/* More menu trigger */}
+              {renamingId !== conv.id && (hoveredId === conv.id || menuId === conv.id) && (
                 <div className="flex items-center gap-0.5 shrink-0">
                   <button
                     onClick={(e) => { e.stopPropagation(); setMenuId(menuId === conv.id ? null : conv.id) }}
@@ -98,8 +148,17 @@ export default function ChatList() {
                   </button>
                 </div>
               )}
+
+              {/* Dropdown menu */}
               {menuId === conv.id && (
                 <div className="absolute right-0 top-full mt-1 z-50 bg-surface border border-border rounded-lg shadow-xl py-1 min-w-[140px]">
+                  <button
+                    onClick={(e) => startRename(conv, e)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface-hover"
+                  >
+                    <Pencil size={14} />
+                    Rename
+                  </button>
                   <button
                     onClick={(e) => handleDelete(conv.id, e)}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-danger hover:bg-surface-hover"
