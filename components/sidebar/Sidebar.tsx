@@ -12,7 +12,7 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile backdrop — tap to close */}
+      {/* Mobile backdrop */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
@@ -21,9 +21,6 @@ export default function Sidebar() {
         />
       )}
 
-      {/* Sidebar panel
-          Mobile  (<md): fixed overlay on top of content (z-50)
-          Desktop (md+): normal document-flow column (shrink-0, relative) */}
       <aside
         className={`
           sidebar-transition flex flex-col bg-sidebar overflow-hidden
@@ -34,15 +31,21 @@ export default function Sidebar() {
           md:relative md:shrink-0 md:h-full
         `}
       >
+        {/* Header — always sticky at top */}
         <SidebarHeader />
 
         {isOpen && (
           <>
-            <NavLinks />
-            <div className="h-px bg-border/50 mx-4 my-2" />
-            <ProjectsList />
-            <div className="h-px bg-border/50 mx-4 my-1" />
-            <ChatList />
+            {/* ONE unified scrollable section — NavLinks + Projects + Chat history */}
+            <div className="flex-1 overflow-y-auto min-h-0">
+              <NavLinks />
+              <div className="h-px bg-border/50 mx-4 my-2" />
+              <ProjectsList />
+              <div className="h-px bg-border/50 mx-4 my-1" />
+              <ChatList />
+            </div>
+
+            {/* UserMenu always pinned at bottom */}
             <UserMenu />
           </>
         )}

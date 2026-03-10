@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Send, ChevronLeft } from 'lucide-react'
+import { X, Send } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
@@ -363,19 +363,29 @@ export default function VoicePage() {
     : isSpeaking  ? 'text-emerald-400'
     : 'text-zinc-500'
 
+  const ambientColor = !active
+    ? 'transparent'
+    : isListening
+    ? 'rgba(99,102,241,0.08)'
+    : isThinking
+    ? 'rgba(245,158,11,0.07)'
+    : isSpeaking
+    ? 'rgba(16,185,129,0.08)'
+    : 'rgba(99,102,241,0.04)'
+
   /* ─── JSX ─────────────────────────────────────────────────────────────── */
   return (
-    <div className="h-[100dvh] bg-black flex flex-col items-center overflow-hidden select-none">
+    <div className="h-full bg-[#08080f] flex flex-col items-center overflow-hidden select-none relative">
+
+      {/* Ambient glow */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: `radial-gradient(ellipse 60% 50% at 50% 30%, ${ambientColor}, transparent)`,
+        transition: 'background 1s ease',
+      }} />
 
       {/* ── Top bar ── */}
       <div className="w-full flex items-center justify-between px-5 pt-5 pb-2 flex-shrink-0">
-        <button
-          onClick={() => { endVoice() }}
-          className="flex items-center gap-1 text-zinc-600 hover:text-zinc-400 transition-colors"
-        >
-          <ChevronLeft size={16} />
-          <span className="text-[11px]">Hub</span>
-        </button>
+        <div className="w-16" />
         <span className="text-zinc-700 text-[10px] tracking-[0.3em] uppercase font-medium">
           Pyxis Voice
         </span>

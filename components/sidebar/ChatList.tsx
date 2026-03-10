@@ -103,7 +103,7 @@ export default function ChatList() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-2 py-1">
+    <div className="px-2 py-1 pb-4">
       {groups.map(group => (
         <div key={group.label} className="mb-3">
           <div className="px-3 py-1.5 text-xs font-medium text-text-tertiary">{group.label}</div>

@@ -54,7 +54,7 @@ export default function ImagesPage() {
       const blobUrl = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = blobUrl
-      a.download = `pyxis-${prompt.slice(0, 30).replace(/s+/g, '-')}.png`
+      a.download = `pyxis-${prompt.slice(0, 30).replace(/\s+/g, '-')}.png`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
