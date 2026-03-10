@@ -10,6 +10,7 @@ import MessageList from './MessageList'
 import ChatInput from './ChatInput'
 import VoiceMode from '@/components/voice/VoiceMode'
 import { Message } from '@/types'
+import { PanelLeft } from 'lucide-react'
 
 interface Props {
   conversationId?: string
@@ -23,7 +24,7 @@ export default function ChatView({ conversationId }: Props) {
     activeConversationId, setActiveConversationId,
     abortController,
   } = useChat()
-  const { setConversations } = useSidebar()
+  const { setConversations, isOpen, toggle } = useSidebar()
   const { getToken } = useAuth()
   const [voiceMode, setVoiceMode] = useState(false)
   const [editContent, setEditContent] = useState<string | null>(null)
@@ -302,8 +303,17 @@ export default function ChatView({ conversationId }: Props) {
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      {/* Top bar — model selector */}
-      <div className="flex items-center px-4 py-2 shrink-0">
+      {/* Top bar — sidebar toggle (when closed) sits inline left of ModelSelector */}
+      <div className="flex items-center gap-1 px-2 py-2 shrink-0">
+        {!isOpen && (
+          <button
+            onClick={toggle}
+            className="p-2 rounded-lg btn-ghost text-text-secondary hover:text-text-primary shrink-0"
+            title="Open sidebar"
+          >
+            <PanelLeft size={20} />
+          </button>
+        )}
         <ModelSelector />
       </div>
 

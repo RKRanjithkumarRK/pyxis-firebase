@@ -24,7 +24,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <main className="flex-1 flex flex-col min-w-0 relative">
         {!isOpen && (
-          <button onClick={toggle} className="absolute top-3 left-3 z-10 p-2 rounded-lg btn-ghost text-text-secondary hover:text-text-primary">
+          <button onClick={toggle} className="self-start mt-2 ml-2 p-2 rounded-lg btn-ghost text-text-secondary hover:text-text-primary shrink-0">
             <PanelLeft size={20} />
           </button>
         )}

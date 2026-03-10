@@ -241,16 +241,25 @@ export default function Message({ message, onRegenerate, isLast, index, onEdit }
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        {/* Edit button — appears to the left of the bubble on hover */}
-        {onEdit && index !== undefined && (
+        {/* Action buttons: copy + edit — always visible on touch, hover-reveal on desktop */}
+        <div className={`flex items-center gap-0.5 transition-opacity ${hovered ? 'opacity-100' : 'opacity-0 [@media(hover:none)]:opacity-100'}`}>
           <button
-            onClick={() => onEdit(message.content, index)}
-            className={`p-1.5 rounded-lg text-text-tertiary hover:text-text-secondary hover:bg-surface-hover transition-all ${hovered ? 'opacity-100' : 'opacity-0'}`}
-            title="Edit message"
+            onClick={handleCopy}
+            className="p-1.5 rounded-lg text-text-tertiary hover:text-text-secondary hover:bg-surface-hover transition-colors"
+            title="Copy message"
           >
-            <Pencil size={14} />
+            {copied ? <Check size={14} /> : <Copy size={14} />}
           </button>
-        )}
+          {onEdit && index !== undefined && (
+            <button
+              onClick={() => onEdit(message.content, index)}
+              className="p-1.5 rounded-lg text-text-tertiary hover:text-text-secondary hover:bg-surface-hover transition-colors"
+              title="Edit message"
+            >
+              <Pencil size={14} />
+            </button>
+          )}
+        </div>
         <div className="max-w-[80%] px-5 py-3.5 rounded-3xl bg-surface text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap break-words">
           {message.content}
           {message.imageUrl && (
@@ -310,7 +319,7 @@ export default function Message({ message, onRegenerate, isLast, index, onEdit }
           </div>
 
           {/* Action bar — visible on hover */}
-          <div className={`flex items-center gap-0.5 mt-2 transition-opacity ${hovered ? 'opacity-100' : 'opacity-0'}`}>
+          <div className={`flex items-center gap-0.5 mt-2 transition-opacity ${hovered ? 'opacity-100' : 'opacity-0 [@media(hover:none)]:opacity-100'}`}>
             <button
               onClick={handleCopy}
               className="p-1.5 rounded-lg text-text-tertiary hover:text-text-secondary hover:bg-surface-hover transition-colors"
