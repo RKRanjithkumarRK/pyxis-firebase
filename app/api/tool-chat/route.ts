@@ -81,11 +81,12 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: 'messages array is required' }, { status: 400 })
   }
 
-  const googleKey = process.env.GOOGLE_API_KEY
-  const groqKey = process.env.GROQ_API_KEY
-  const orKey = process.env.OPENROUTER_API_KEY
+  const googleKeys = [process.env.GOOGLE_API_KEY, process.env.GOOGLE_API_KEY_2, process.env.GOOGLE_API_KEY_3].filter(Boolean) as string[]
+  const groqKey    = process.env.GROQ_API_KEY || ''
+  const mistralKey = process.env.MISTRAL_API_KEY || ''
+  const orKey      = process.env.OPENROUTER_API_KEY || ''
 
-  if (!googleKey && !groqKey && !orKey) {
+  if (!googleKeys.length && !groqKey && !mistralKey && !orKey) {
     return Response.json({ error: 'No AI API key configured.' }, { status: 500 })
   }
 
@@ -94,26 +95,21 @@ export async function POST(req: NextRequest) {
     ...messages,
   ]
 
-  // ── 1. GOOGLE AI STUDIO ────────────────────────────────────────────
-  if (googleKey && !model?.includes('/')) {
-    const geminiModels = model ? [model] : [
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
-      'gemini-2.0-flash-lite',
-      'gemini-1.5-flash',
-    ]
-    for (const gModel of geminiModels) {
+  // ── 1. GOOGLE AI STUDIO (all 3 keys, fast-fail on 429) ───────────
+  if (googleKeys.length && !model?.includes('/')) {
+    const gmModel = (!model || model === 'gemini-2.5-flash') ? 'gemini-2.0-flash' : model
+    for (const gKey of googleKeys) {
       try {
         const result = await tryProvider(
-          `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`,
-          { 'Authorization': `Bearer ${googleKey}` },
-          { model: gModel, messages: allMessages, stream, max_tokens: 4096 },
+          'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+          { Authorization: `Bearer ${gKey}` },
+          { model: gmModel, messages: allMessages, stream, max_tokens: 4096 },
           stream
         )
         if (result.skip) continue
         if (result.content !== undefined) return Response.json({ content: result.content })
         if (result.res) return new Response(makeSSEStream(result.res), {
-          headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'X-Model': gModel },
+          headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'X-Model': gmModel },
         })
       } catch { continue }
     }
@@ -143,7 +139,27 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── 3. OPENROUTER ──────────────────────────────────────────────────
+
+  // ── 3. MISTRAL AI — confirmed working ─────────────────────────────
+  if (mistralKey) {
+    for (const mModel of ['mistral-small-latest', 'open-mistral-nemo']) {
+      try {
+        const result = await tryProvider(
+          'https://api.mistral.ai/v1/chat/completions',
+          { Authorization: `Bearer ${mistralKey}` },
+          { model: mModel, messages: allMessages, stream, max_tokens: 4096 },
+          stream
+        )
+        if (result.skip) continue
+        if (result.content !== undefined) return Response.json({ content: result.content })
+        if (result.res) return new Response(makeSSEStream(result.res), {
+          headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'X-Model': mModel },
+        })
+      } catch { continue }
+    }
+  }
+
+  // ── 4. OPENROUTER ──────────────────────────────────────────────────
   if (orKey) {
     const orModels = model ? [model] : [
       'meta-llama/llama-3.3-70b-instruct:free',
@@ -175,6 +191,6 @@ export async function POST(req: NextRequest) {
   }
 
   return Response.json({
-    error: 'All AI models are currently unavailable. Please add GOOGLE_API_KEY to your .env.local — get a free key at https://aistudio.google.com/app/apikey'
+    error: 'All AI providers are currently rate-limited. Please try again in a moment.'
   }, { status: 503 })
 }
