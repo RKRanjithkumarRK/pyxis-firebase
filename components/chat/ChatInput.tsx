@@ -70,18 +70,37 @@ export default function ChatInput({ onSend, onStop, onVoiceMode, disabled, prefi
     }
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 2 * 1024 * 1024) { toast.error('File too large. Max 2MB.'); return }
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      setAttachment({ name: file.name, content: ev.target?.result as string })
-      toast.success(`Attached: ${file.name}`)
-    }
-    reader.onerror = () => { toast.error('Failed to read file') }
-    reader.readAsText(file)
+    if (file.size > 10 * 1024 * 1024) { toast.error('File too large. Max 10MB.'); return }
     e.target.value = ''
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || ''
+    const binaryExts = ['pdf', 'doc', 'docx', 'xlsx', 'xls', 'pptx', 'ppt']
+
+    if (binaryExts.includes(ext)) {
+      const toastId = toast.loading(`Parsing ${file.name}…`)
+      try {
+        const form = new FormData()
+        form.append('file', file)
+        const res = await fetch('/api/parse-file', { method: 'POST', body: form })
+        const data = await res.json()
+        if (!res.ok) { toast.error(data.error || 'Failed to parse file', { id: toastId }); return }
+        setAttachment({ name: file.name, content: data.text })
+        toast.success(`Attached: ${file.name}${data.truncated ? ' (truncated)' : ''}`, { id: toastId })
+      } catch {
+        toast.error('Failed to parse file', { id: toastId })
+      }
+    } else {
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        setAttachment({ name: file.name, content: ev.target?.result as string })
+        toast.success(`Attached: ${file.name}`)
+      }
+      reader.onerror = () => { toast.error('Failed to read file') }
+      reader.readAsText(file)
+    }
   }
 
   const startListening = () => {
@@ -221,7 +240,7 @@ export default function ChatInput({ onSend, onStop, onVoiceMode, disabled, prefi
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".txt,.md,.json,.csv,.js,.ts,.py,.html,.css,.xml,.yaml,.yml"
+                accept=".txt,.md,.json,.csv,.js,.ts,.jsx,.tsx,.py,.html,.css,.xml,.yaml,.yml,.pdf,.doc,.docx,.xlsx,.xls,.pptx,.ppt"
                 className="hidden"
                 onChange={handleFileChange}
               />

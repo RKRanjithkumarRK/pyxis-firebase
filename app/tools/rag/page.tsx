@@ -51,16 +51,37 @@ export default function RAGPage() {
     setMessages([])
   }
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = ev => {
-      setDocText(ev.target?.result as string)
-      toast.success(`Loaded: ${file.name}`)
+    if (file.size > 20 * 1024 * 1024) { toast.error('File too large. Max 20MB.'); return }
+    e.target.value = ''
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || ''
+    const binaryExts = ['pdf', 'doc', 'docx', 'xlsx', 'xls', 'pptx', 'ppt']
+
+    if (binaryExts.includes(ext)) {
+      const toastId = toast.loading(`Parsing ${file.name}…`)
+      try {
+        const form = new FormData()
+        form.append('file', file)
+        const res = await fetch('/api/parse-file', { method: 'POST', body: form })
+        const data = await res.json()
+        if (!res.ok) { toast.error(data.error || 'Failed to parse file', { id: toastId }); return }
+        setDocText(data.text)
+        toast.success(`Loaded: ${file.name}${data.truncated ? ' (truncated)' : ''}`, { id: toastId })
+      } catch {
+        toast.error('Failed to parse file', { id: toastId })
+      }
+    } else {
+      const reader = new FileReader()
+      reader.onload = ev => {
+        setDocText(ev.target?.result as string)
+        toast.success(`Loaded: ${file.name}`)
+      }
+      reader.onerror = () => { toast.error('Failed to read file') }
+      reader.readAsText(file)
     }
-    reader.onerror = () => { toast.error('Failed to read file') }
-    reader.readAsText(file)
   }
 
   const retrieve = (query: string, topK = 3): string => {
@@ -128,14 +149,14 @@ export default function RAGPage() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#0a0a0f] text-white">
+    <div className="h-full flex flex-col bg-bg text-text-primary">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-[#1f1f2e] flex-shrink-0">
+      <div className="px-6 py-4 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-3 mb-1">
           <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-green-500 rounded-lg flex items-center justify-center">
             <FileText className="w-4 h-4 text-white" />
           </div>
-          <h1 className="font-semibold text-white">Document Q&A</h1>
+          <h1 className="font-semibold text-text-primary">Document Q&A</h1>
           <span className="text-xs bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full">RAG · Free</span>
         </div>
       </div>
@@ -145,17 +166,17 @@ export default function RAGPage() {
           /* Document input panel */
           <div className="max-w-3xl mx-auto px-4 py-8">
             <div className="mb-6">
-              <h2 className="text-white font-medium mb-1">Load Your Document</h2>
-              <p className="text-zinc-500 text-sm">Paste text or upload a .txt file — then ask anything about it.</p>
+              <h2 className="text-text-primary font-medium mb-1">Load Your Document</h2>
+              <p className="text-text-secondary text-sm">Paste text or upload any document (PDF, Word, Excel, CSV, TXT…) — then ask anything about it.</p>
             </div>
 
             <div
               onClick={() => fileRef.current?.click()}
-              className="flex items-center justify-center gap-3 p-4 border border-dashed border-[#2a2a3e] rounded-xl mb-4 cursor-pointer hover:border-emerald-500/40 transition-all group"
+              className="flex items-center justify-center gap-3 p-4 border border-dashed border-border rounded-xl mb-4 cursor-pointer hover:border-emerald-500/40 transition-all group"
             >
-              <Upload className="w-4 h-4 text-zinc-600 group-hover:text-emerald-400" />
-              <span className="text-sm text-zinc-600 group-hover:text-emerald-400">Upload .txt file</span>
-              <input ref={fileRef} type="file" accept=".txt,.md,.csv" className="hidden" onChange={handleFile} />
+              <Upload className="w-4 h-4 text-text-tertiary group-hover:text-emerald-400" />
+              <span className="text-sm text-text-tertiary group-hover:text-emerald-400">Upload document (PDF, DOCX, XLSX, TXT, CSV…)</span>
+              <input ref={fileRef} type="file" accept=".txt,.md,.csv,.json,.pdf,.doc,.docx,.xlsx,.xls,.pptx,.ppt,.py,.js,.ts,.html" className="hidden" onChange={handleFile} />
             </div>
 
             <textarea
@@ -163,7 +184,7 @@ export default function RAGPage() {
               onChange={e => setDocText(e.target.value)}
               placeholder="Or paste your document text here…"
               rows={14}
-              className="w-full bg-[#111118] border border-[#2a2a3e] focus:border-emerald-500/50 rounded-xl px-4 py-3 text-sm text-zinc-200 placeholder-zinc-600 outline-none resize-none transition-all mb-4"
+              className="w-full bg-surface border border-border focus:border-emerald-500/50 rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-tertiary outline-none resize-none transition-all mb-4"
             />
 
             <button
@@ -184,7 +205,7 @@ export default function RAGPage() {
               </div>
               <button
                 onClick={() => { setDocLoaded(false); setDocText(''); setMessages([]); setChunks([]); setVocab([]); setEmbeddings([]) }}
-                className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-red-400 transition-colors"
+                className="flex items-center gap-1.5 text-xs text-text-tertiary hover:text-red-400 transition-colors"
               >
                 <Trash2 className="w-3 h-3" /> Load new doc
               </button>
@@ -194,12 +215,12 @@ export default function RAGPage() {
               <div className="max-w-3xl mx-auto space-y-4">
                 {messages.length === 0 && (
                   <div className="text-center py-12">
-                    <FileText className="w-10 h-10 text-zinc-700 mx-auto mb-3" />
-                    <p className="text-zinc-500 text-sm">Document loaded! Ask anything about it.</p>
+                    <FileText className="w-10 h-10 text-text-tertiary mx-auto mb-3" />
+                    <p className="text-text-secondary text-sm">Document loaded! Ask anything about it.</p>
                     <div className="mt-4 flex flex-wrap gap-2 justify-center">
                       {['Summarize this document', 'What are the main points?', 'What conclusions are drawn?'].map(s => (
                         <button key={s} onClick={() => setInput(s)}
-                          className="px-3 py-1.5 bg-[#111118] border border-[#2a2a3e] rounded-lg text-xs text-zinc-400 hover:text-white hover:border-emerald-500/40 transition-all">
+                          className="px-3 py-1.5 bg-surface border border-border rounded-lg text-xs text-text-secondary hover:text-text-primary hover:border-emerald-500/40 transition-all">
                           {s}
                         </button>
                       ))}
@@ -214,7 +235,7 @@ export default function RAGPage() {
                       </div>
                     )}
                     <div className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                      msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-[#111118] border border-[#1f1f2e] text-zinc-200'
+                      msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-surface border border-border text-text-primary'
                     }`}>
                       <pre className="whitespace-pre-wrap font-sans">{msg.content}
                         {msg.role === 'assistant' && streaming && i === messages.length - 1 && (
@@ -227,7 +248,7 @@ export default function RAGPage() {
               </div>
             </div>
 
-            <div className="px-4 py-4 border-t border-[#1f1f2e] flex-shrink-0">
+            <div className="px-4 py-4 border-t border-border flex-shrink-0">
               <div className="max-w-3xl mx-auto flex gap-3">
                 <textarea
                   value={input}
@@ -235,7 +256,7 @@ export default function RAGPage() {
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
                   placeholder="Ask anything about your document…"
                   rows={1}
-                  className="flex-1 bg-[#111118] border border-[#2a2a3e] focus:border-emerald-500/50 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-600 outline-none resize-none transition-all"
+                  className="flex-1 bg-surface border border-border focus:border-emerald-500/50 rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-tertiary outline-none resize-none transition-all"
                 />
                 <button onClick={send} disabled={streaming || !input.trim()}
                   className="px-4 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-xl transition-all">

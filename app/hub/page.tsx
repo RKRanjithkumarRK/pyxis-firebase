@@ -19,7 +19,7 @@ const SKILLS = [
 export default function HubPage() {
   const router = useRouter()
   return (
-    <div className="min-h-[100dvh] bg-[#0a0a0f] text-white p-6 overflow-y-auto">
+    <div className="min-h-[100dvh] bg-bg text-text-primary p-6 overflow-y-auto">
       {/* Hero */}
       <div className="max-w-5xl mx-auto mb-10 text-center pt-6">
         <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-indigo-400 text-xs font-medium mb-4">
@@ -28,7 +28,7 @@ export default function HubPage() {
         <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-white via-indigo-200 to-purple-400 bg-clip-text text-transparent">
           12 AI Skills Hub
         </h1>
-        <p className="text-zinc-400 text-lg max-w-xl mx-auto">
+        <p className="text-text-secondary text-lg max-w-xl mx-auto">
           Master every AI skill in one place — completely free, powered by Google Gemini AI.
         </p>
       </div>
@@ -39,7 +39,7 @@ export default function HubPage() {
           <button
             key={skill.num}
             onClick={() => router.push(skill.href)}
-            className="group text-left p-5 rounded-2xl bg-[#111118] border border-[#1f1f2e] hover:border-indigo-500/40 transition-all duration-200 hover:-translate-y-0.5"
+            className="group text-left p-5 rounded-2xl bg-surface border border-border hover:border-indigo-500/40 transition-all duration-200 hover:-translate-y-0.5"
           >
             <div className="flex items-start gap-3 mb-3">
               <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${skill.color} flex items-center justify-center text-xl flex-shrink-0`}>
@@ -47,19 +47,19 @@ export default function HubPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-xs text-zinc-600 font-mono">#{skill.num}</span>
+                  <span className="text-xs text-text-tertiary font-mono">#{skill.num}</span>
                   <span className="text-xs bg-green-500/10 text-green-400 px-1.5 py-0.5 rounded-full font-medium">FREE</span>
                 </div>
-                <h3 className="text-white font-semibold text-sm leading-tight">{skill.title}</h3>
+                <h3 className="text-text-primary font-semibold text-sm leading-tight">{skill.title}</h3>
               </div>
             </div>
-            <p className="text-zinc-500 text-xs leading-relaxed">{skill.desc}</p>
+            <p className="text-text-tertiary text-xs leading-relaxed">{skill.desc}</p>
           </button>
         ))}
       </div>
 
       {/* Footer */}
-      <div className="max-w-5xl mx-auto mt-10 text-center text-zinc-600 text-xs pb-8">
+      <div className="max-w-5xl mx-auto mt-10 text-center text-text-tertiary text-xs pb-8">
         Powered by Google Gemini AI · Gemini 2.5 Flash · Gemini 2.0 Flash · and more
       </div>
     </div>

@@ -29,11 +29,16 @@ export default function ChatView({ conversationId }: Props) {
   const [voiceMode, setVoiceMode] = useState(false)
   const [editContent, setEditContent] = useState<string | null>(null)
   const currentConvIdRef = useRef<string | null>(null)
+  const messagesRef = useRef(messages)
 
-  // Sync ref with state
+  // Sync refs with state
   useEffect(() => {
     currentConvIdRef.current = activeConversationId
   }, [activeConversationId])
+
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
 
   // Load conversation
   useEffect(() => {
@@ -201,7 +206,7 @@ export default function ChatView({ conversationId }: Props) {
       }
 
       // Build message history for API (current messages + new user message)
-      const apiMessages = [...messages, userMsg]
+      const apiMessages = [...messagesRef.current, userMsg]
         .filter(m => m.role === 'user' || m.role === 'assistant')
         .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
 
