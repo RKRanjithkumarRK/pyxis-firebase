@@ -1,12 +1,31 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import './globals.css'
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: dark)',  color: '#212121' },
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+  ],
+}
+
 export const metadata: Metadata = {
   title: 'Pyxis',
   description: 'AI chat assistant powered by multiple models.',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Pyxis',
+  },
+  icons: {
+    icon: '/favicon.svg',
+  },
 }
 
 const themeScript = `

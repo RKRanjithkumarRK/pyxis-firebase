@@ -15,7 +15,7 @@ export default function VoiceLayout({ children }: { children: React.ReactNode })
   // Show spinner while auth resolves
   if (loading) {
     return (
-      <div className="h-screen bg-black flex items-center justify-center">
+      <div className="h-[100dvh] bg-black flex items-center justify-center">
         <div className="w-8 h-8 rounded-full border-2 border-zinc-700 border-t-indigo-500 animate-spin" />
       </div>
     )

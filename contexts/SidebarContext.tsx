@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { Conversation, Project } from '@/types'
 
 interface SidebarContextType {
@@ -20,11 +20,19 @@ interface SidebarContextType {
 const SidebarContext = createContext<SidebarContextType | null>(null)
 
 export function SidebarProvider({ children }: { children: ReactNode }) {
+  // Default open for SSR; on mobile (<768px) we close it after mount
   const [isOpen, setIsOpen] = useState(true)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
+
+  // On first client render, close sidebar on small screens
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setIsOpen(false)
+    }
+  }, [])
 
   const toggle = () => setIsOpen(p => !p)
   const setOpen = (open: boolean) => setIsOpen(open)

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Background circle -->
+  <rect width="64" height="64" rx="14" fill="#212121"/>
+  <!-- Pyxis "star compass" mark in accent green -->
+  <circle cx="32" cy="32" r="10" fill="#10a37f" opacity="0.18"/>
+  <circle cx="32" cy="32" r="5" fill="#10a37f"/>
+  <!-- Four compass points -->
+  <polygon points="32,8 35,27 32,22 29,27" fill="#10a37f"/>
+  <polygon points="32,56 35,37 32,42 29,37" fill="#10a37f"/>
+  <polygon points="8,32 27,29 22,32 27,35" fill="#10a37f"/>
+  <polygon points="56,32 37,29 42,32 37,35" fill="#10a37f"/>
+</svg>

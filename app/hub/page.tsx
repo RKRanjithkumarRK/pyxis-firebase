@@ -19,7 +19,7 @@ const SKILLS = [
 export default function HubPage() {
   const router = useRouter()
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white p-6 overflow-y-auto">
+    <div className="min-h-[100dvh] bg-[#0a0a0f] text-white p-6 overflow-y-auto">
       {/* Hero */}
       <div className="max-w-5xl mx-auto mb-10 text-center pt-6">
         <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-indigo-400 text-xs font-medium mb-4">

@@ -86,14 +86,14 @@ export default function LoginPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-bg">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-bg">
         <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg px-4">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-bg px-4">
       <div className="w-full max-w-[340px]">
         {/* Logo */}
         <div className="text-center mb-8">

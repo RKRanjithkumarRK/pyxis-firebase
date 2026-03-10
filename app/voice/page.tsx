@@ -365,7 +365,7 @@ export default function VoicePage() {
 
   /* ─── JSX ─────────────────────────────────────────────────────────────── */
   return (
-    <div className="h-screen bg-black flex flex-col items-center overflow-hidden select-none">
+    <div className="h-[100dvh] bg-black flex flex-col items-center overflow-hidden select-none">
 
       {/* ── Top bar ── */}
       <div className="w-full flex items-center justify-between px-5 pt-5 pb-2 flex-shrink-0">
@@ -543,7 +543,7 @@ export default function VoicePage() {
       </div>
 
       {/* ── Bottom input ── */}
-      <div className="w-full max-w-sm px-4 pb-6 pt-2 flex-shrink-0">
+      <div className="w-full max-w-sm px-4 pt-2 flex-shrink-0" style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))" }}>
         <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-2xl px-3 py-2
                         transition-colors focus-within:border-zinc-700">
           <input
