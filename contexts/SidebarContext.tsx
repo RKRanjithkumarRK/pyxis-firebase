@@ -29,9 +29,15 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
 
   // Keep the canvas wider on phones, tablets, and narrower desktop windows.
   useEffect(() => {
-    if (window.innerWidth < 1440) {
-      setIsOpen(false)
+    const syncForViewport = () => {
+      if (window.innerWidth < 1440 || window.innerHeight < 980) {
+        setIsOpen(false)
+      }
     }
+
+    syncForViewport()
+    window.addEventListener('resize', syncForViewport)
+    return () => window.removeEventListener('resize', syncForViewport)
   }, [])
 
   const toggle = () => setIsOpen(p => !p)
