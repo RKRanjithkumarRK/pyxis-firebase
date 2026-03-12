@@ -10,233 +10,14 @@ import toast from 'react-hot-toast'
 /* ─── types ─────────────────────────────────────────────────────── */
 type Tab = 'txt2vid' | 'img2vid' | 'audio'
 
-/* ─── Gradio Space definitions (free, no account) ──────────────── */
-interface SpaceDef {
-  name: string
-  url: string
-  fnIndex: number
-  inputs: (prompt: string) => unknown[]
-}
-
-/**
- * HuggingFace Gradio Spaces for text-to-video.
- * These are publicly accessible, no API key needed.
- * Tried in order — first success wins.
- */
-const T2V_SPACES: SpaceDef[] = [
-  {
-    name: 'CogVideoX-5B',
-    url: 'https://thudm-cogvideox-5b.hf.space',
-    fnIndex: 0,
-    inputs: (p) => [p, 42, 49, 8, 6.0, 50],
-  },
-  {
-    name: 'CogVideoX-2B',
-    url: 'https://thudm-cogvideox-2b.hf.space',
-    fnIndex: 0,
-    inputs: (p) => [p, 42, 49, 8, 6.0, 50],
-  },
-  {
-    name: 'ZeroScope V2',
-    url: 'https://hysts-zeroscope-v2.hf.space',
-    fnIndex: 0,
-    inputs: (p) => [p, '', 0, 576, 320, 24, 7.5, 50, 1],
-  },
-  {
-    name: 'AnimateDiff',
-    url: 'https://guoyww-animatediff.hf.space',
-    fnIndex: 0,
-    inputs: (p) => [p, '', 7.5, 1, 16, 8],
-  },
-]
-
-/** Stable Video Diffusion space for image → video */
-const I2V_SPACES: SpaceDef[] = [
-  {
-    name: 'Stable Video Diffusion',
-    url: 'https://stabilityai-stable-video-diffusion.hf.space',
-    fnIndex: 0,
-    inputs: (imgB64) => [imgB64, 25, 4.0, 127, 1],
-  },
-  {
-    name: 'SVD-XT',
-    url: 'https://multimodalart-stable-video-diffusion.hf.space',
-    fnIndex: 0,
-    inputs: (imgB64) => [imgB64, 25, 4.0, 127],
-  },
-]
-
 /* ─── helpers ────────────────────────────────────────────────────── */
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
 
-/** Try a Gradio space via SSE queue protocol */
-function tryGradioSpace(
-  space: SpaceDef,
-  inputs: unknown[],
-  onStatus: (s: string) => void,
-  onPct: (n: number) => void,
-  cancelRef: { current: boolean },
-): Promise<Blob> {
-  const sessionHash = Math.random().toString(36).slice(2, 12)
-
-  return new Promise(async (resolve, reject) => {
-    /* 1. Join the queue */
-    let joinOk = false
-    try {
-      const jr = await fetch(`${space.url}/queue/join`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data: inputs,
-          fn_index: space.fnIndex,
-          session_hash: sessionHash,
-          event_data: null,
-        }),
-        signal: AbortSignal.timeout(20_000),
-      })
-      joinOk = jr.ok
-      if (!jr.ok) {
-        const txt = await jr.text().catch(() => '')
-        reject(new Error(`Join ${jr.status}: ${txt.slice(0, 100)}`))
-        return
-      }
-    } catch (e: any) {
-      reject(new Error(`Network: ${e.message}`))
-      return
-    }
-
-    if (cancelRef.current) { reject(new Error('Cancelled')); return }
-
-    /* 2. Stream events */
-    const es = new EventSource(`${space.url}/queue/data?session_hash=${sessionHash}`)
-    let done = false
-
-    const fail = (msg: string) => {
-      if (done) return; done = true
-      es.close(); clearTimeout(timeout)
-      reject(new Error(msg))
-    }
-    const succeed = (blob: Blob) => {
-      if (done) return; done = true
-      es.close(); clearTimeout(timeout)
-      resolve(blob)
-    }
-
-    const timeout = setTimeout(() => fail('Timeout (8 min)'), 8 * 60 * 1000)
-
-    es.addEventListener('message', async (evt) => {
-      if (done) return
-      if (cancelRef.current) { fail('Cancelled'); return }
-
-      let msg: any
-      try { msg = JSON.parse(evt.data) } catch { return }
-
-      switch (msg.msg) {
-        case 'queue_full':
-          fail('Queue full'); break
-
-        case 'estimation': {
-          const eta = Math.ceil((msg.rank_eta ?? 60) as number)
-          onStatus(`Queue: position ${msg.rank ?? '?'} · ~${eta}s wait`)
-          onPct(3)
-          break
-        }
-        case 'process_starts':
-          onStatus(`${space.name} is generating your video…`)
-          onPct(8)
-          break
-
-        case 'process_generating': {
-          const pd = msg.progress_data?.[0]
-          if (pd?.length) {
-            const p = Math.round((pd.index / pd.length) * 80) + 10
-            onPct(p)
-            onStatus(`Generating frame ${pd.index} / ${pd.length}…`)
-          } else {
-            onStatus('Generating video frames…')
-            onPct(50)
-          }
-          break
-        }
-        case 'process_completed': {
-          if (!msg.success || msg.output?.error) {
-            fail(String(msg.output?.error ?? 'Generation failed'))
-            return
-          }
-          onStatus('Downloading video…')
-          onPct(95)
-
-          // Extract video URL — Gradio returns several possible shapes
-          const out = msg.output?.data?.[0]
-          let videoUrl: string | null = null
-
-          if (typeof out === 'string') {
-            videoUrl = out.startsWith('http') ? out : `${space.url}${out}`
-          } else if (out?.url) {
-            const u = String(out.url)
-            videoUrl = u.startsWith('http') ? u : `${space.url}${u}`
-          } else if (out?.name || out?.path) {
-            const p = String(out.name ?? out.path)
-            videoUrl = p.startsWith('http') ? p : `${space.url}/file=${p}`
-          } else if (out?.value?.url) {
-            const u = String(out.value.url)
-            videoUrl = u.startsWith('http') ? u : `${space.url}${u}`
-          }
-
-          if (!videoUrl) {
-            fail(`No video URL in response: ${JSON.stringify(out).slice(0, 200)}`)
-            return
-          }
-
-          fetch(videoUrl)
-            .then(r => r.ok ? r.blob() : Promise.reject(new Error(`Download ${r.status}`)))
-            .then(b => b.size > 500 ? succeed(b) : fail('Empty video blob'))
-            .catch(e => fail(e.message))
-          break
-        }
-      }
-    })
-
-    es.onerror = () => { if (!done) fail('SSE connection lost') }
-  })
-}
-
-/** Try spaces list in order, return first working result */
-async function generateWithSpaces(
-  spaces: SpaceDef[],
-  inputs: (space: SpaceDef) => unknown[],
-  onStatus: (s: string) => void,
-  onPct: (n: number) => void,
-  cancelRef: { current: boolean },
-): Promise<Blob> {
-  let lastErr = ''
-  for (let i = 0; i < spaces.length; i++) {
-    const space = spaces[i]
-    if (cancelRef.current) throw new Error('Cancelled')
-    try {
-      onStatus(`Connecting to ${space.name}…`)
-      onPct(1)
-      const blob = await tryGradioSpace(space, inputs(space), onStatus, onPct, cancelRef)
-      if (blob.size > 500) return blob
-      throw new Error('Empty video')
-    } catch (e: any) {
-      if (e.message === 'Cancelled' || cancelRef.current) throw new Error('Cancelled')
-      lastErr = e.message
-      console.warn(`[${space.name}] failed: ${lastErr}`)
-      if (i < spaces.length - 1) {
-        onStatus(`${space.name} unavailable — trying ${spaces[i + 1].name}…`)
-        await sleep(1500)
-      }
-    }
-  }
-  throw new Error(`All AI servers busy. Last error: ${lastErr}`)
-}
-
-/** Convert File to base64 data URL */
+/** Convert File to base64 data URL (needed to send image to server) */
 function fileToBase64(file: File): Promise<string> {
   return new Promise((res, rej) => {
     const r = new FileReader()
-    r.onload = e => res(e.target!.result as string)
+    r.onload  = e => res(e.target!.result as string)
     r.onerror = () => rej(new Error('File read error'))
     r.readAsDataURL(file)
   })
@@ -309,7 +90,7 @@ export default function GeneratePage() {
     setStatus('')
   }, [])
 
-  /* ── GENERATE ─────────────────────────────────────────────────── */
+  /* ── GENERATE (server-side proxy → bypasses HF CORS) ─────────── */
   const generate = useCallback(async () => {
     if (genRef.current) return
     const isImg = tab === 'img2vid'
@@ -320,54 +101,74 @@ export default function GeneratePage() {
     genRef.current    = true
     setGenerating(true)
     setPct(0)
-    setStatus('')
+    setStatus('Connecting to AI server…')
     setVidError('')
     setVideoUrl('')
     setVideoType('')
 
     try {
-      let blob: Blob
-
-      if (isImg) {
-        /* ── Image → Video via Stable Video Diffusion space ── */
+      /* 1. Server joins the HF Gradio queue (avoids browser CORS/403) */
+      let imageData: string | undefined
+      if (isImg && imgFile) {
         setStatus('Reading image…')
-        setPct(2)
-        const imgB64 = await fileToBase64(imgFile!)
-        if (cancelRef.current) return
-
-        blob = await generateWithSpaces(
-          I2V_SPACES,
-          (space) => space.inputs(imgB64),
-          (s) => { if (!cancelRef.current) setStatus(s) },
-          (p) => { if (!cancelRef.current) setPct(p) },
-          cancelRef,
-        )
-        setVideoType('Image to Video')
-      } else {
-        /* ── Text → Video via CogVideoX / ZeroScope space ── */
-        blob = await generateWithSpaces(
-          T2V_SPACES,
-          (space) => space.inputs(txtPrompt.trim()),
-          (s) => { if (!cancelRef.current) setStatus(s) },
-          (p) => { if (!cancelRef.current) setPct(p) },
-          cancelRef,
-        )
-        setVideoType('Text to Video')
+        imageData = await fileToBase64(imgFile)
       }
-
       if (cancelRef.current) return
 
-      const url = URL.createObjectURL(blob)
-      blobUrls.current.push(url)
-      setVideoUrl(url)
-      setPct(100)
-      setStatus('')
+      const startRes = await fetch('/api/video/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt:    isImg ? (imgPrompt.trim() || 'smooth cinematic motion') : txtPrompt.trim(),
+          mode:      isImg ? 'img2vid' : 'txt2vid',
+          imageData,
+        }),
+      })
+      const startData = await startRes.json()
 
-      const label = isImg
-        ? (imgFile?.name?.replace(/\.[^.]+$/, '') ?? 'Uploaded image')
-        : txtPrompt.trim().slice(0, 40)
-      setHistory(h => [{ id: Date.now().toString(), url, label }, ...h].slice(0, 8))
-      toast.success('AI video ready! 🎬')
+      if (!startData.ok) throw new Error(startData.error ?? 'Could not join generation queue')
+      if (cancelRef.current) return
+
+      const { sessionHash, spaceUrl, spaceName } = startData
+      setStatus(`Joined ${spaceName} queue — waiting for GPU…`)
+      setPct(3)
+      setVideoType(isImg ? 'Image to Video' : 'Text to Video')
+
+      /* 2. Poll server proxy for progress (server reads HF SSE — no CORS) */
+      const MAX_POLLS = 60 // 60 × 8s = ~8 min max
+      for (let i = 0; i < MAX_POLLS; i++) {
+        if (cancelRef.current) return
+        await sleep(i === 0 ? 3000 : 8000) // first poll faster
+        if (cancelRef.current) return
+
+        const pollRes = await fetch(
+          `/api/video/poll?sessionHash=${sessionHash}&spaceUrl=${encodeURIComponent(spaceUrl)}`,
+        )
+        const poll = await pollRes.json()
+
+        if (poll.message) setStatus(poll.message)
+        if (typeof poll.pct === 'number' && poll.pct > pct) setPct(poll.pct)
+
+        if (poll.status === 'completed') {
+          /* video comes back as base64 data URL (server proxied to avoid CORS) */
+          setVideoUrl(poll.videoData)
+          setPct(100)
+          setStatus('')
+          const label = isImg
+            ? (imgFile?.name?.replace(/\.[^.]+$/, '') ?? 'Uploaded image')
+            : txtPrompt.trim().slice(0, 40)
+          setHistory(h => [{ id: Date.now().toString(), url: poll.videoData, label }, ...h].slice(0, 8))
+          toast.success('AI video ready! 🎬')
+          return
+        }
+
+        if (poll.status === 'failed') {
+          throw new Error(poll.error ?? 'Generation failed — please try again')
+        }
+        // 'queued' | 'generating' → keep polling
+      }
+
+      throw new Error('Generation timed out — the free GPU queue was very busy. Please try again.')
 
     } catch (err: any) {
       if (!cancelRef.current) {
@@ -375,11 +176,9 @@ export default function GeneratePage() {
       }
     } finally {
       genRef.current = false
-      if (!cancelRef.current) {
-        setGenerating(false)
-      }
+      if (!cancelRef.current) setGenerating(false)
     }
-  }, [tab, imgFile, imgPrompt, txtPrompt])
+  }, [tab, imgFile, imgPrompt, txtPrompt, pct])
 
   /* download */
   const download = useCallback(() => {
