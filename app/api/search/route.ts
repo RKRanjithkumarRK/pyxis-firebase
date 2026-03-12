@@ -107,6 +107,25 @@ async function fetchDuckDuckGoInstantResults(query: string) {
   return results.slice(0, 6)
 }
 
+async function fetchWikipediaResults(query: string) {
+  const res = await fetchWithTimeout(
+    `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&utf8=1&format=json&srlimit=6&origin=*`
+  )
+
+  if (!res.ok) {
+    throw new Error(`Wikipedia provider returned ${res.status}`)
+  }
+
+  const data = await res.json()
+  const items = Array.isArray(data?.query?.search) ? data.query.search : []
+
+  return items.slice(0, 6).map((item: any) => ({
+    title: item?.title || query,
+    snippet: String(item?.snippet || '').replace(/<[^>]+>/g, '').trim(),
+    url: `https://en.wikipedia.org/wiki/${encodeURIComponent(String(item?.title || query).replace(/\s+/g, '_'))}`,
+  }))
+}
+
 export async function GET(req: NextRequest) {
   const query = req.nextUrl.searchParams.get('q') || ''
   if (!query) return Response.json({ results: [], answer: '' })
@@ -119,8 +138,15 @@ export async function GET(req: NextRequest) {
       }
     } catch {}
 
-    const fallbackResults = await fetchDuckDuckGoInstantResults(query)
-    return Response.json({ results: fallbackResults, answer: '' })
+    try {
+      const instantResults = await fetchDuckDuckGoInstantResults(query)
+      if (instantResults.length > 0) {
+        return Response.json({ results: instantResults, answer: '' })
+      }
+    } catch {}
+
+    const wikipediaResults = await fetchWikipediaResults(query)
+    return Response.json({ results: wikipediaResults, answer: '' })
   } catch (err: any) {
     return Response.json({ results: [], answer: '', error: err.message })
   }
