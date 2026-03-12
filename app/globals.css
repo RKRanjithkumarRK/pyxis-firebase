@@ -179,3 +179,15 @@ html.light .markdown-body :not(pre) > code { background: rgba(0,0,0,0.07); paddi
 
 /* Bounce animation for loading dots (used in code/tools pages) */
 @keyframes bounce { 0%,100%{transform:translateY(0);opacity:0.5} 50%{transform:translateY(-8px);opacity:1} }
+
+/* ── Ken Burns effect — smooth zoom+pan for AI Video frames ── */
+@keyframes kb0 { 0%{transform:scale(1)   translate(0,0)}        100%{transform:scale(1.25) translate(-4%,-2%)} }
+@keyframes kb1 { 0%{transform:scale(1.1) translate(3%,2%)}      100%{transform:scale(1.3)  translate(-3%,-3%)} }
+@keyframes kb2 { 0%{transform:scale(1)   translate(-3%,2%)}     100%{transform:scale(1.2)  translate(4%,-4%)}  }
+@keyframes kb3 { 0%{transform:scale(1.15)translate(-2%,-3%)}    100%{transform:scale(1)    translate(3%,3%)}   }
+@keyframes kb4 { 0%{transform:scale(1)   translate(2%,-2%)}     100%{transform:scale(1.2)  translate(-5%,2%)}  }
+.kb0 { animation: kb0 var(--kb-dur,2s) ease-in-out forwards; }
+.kb1 { animation: kb1 var(--kb-dur,2s) ease-in-out forwards; }
+.kb2 { animation: kb2 var(--kb-dur,2s) ease-in-out forwards; }
+.kb3 { animation: kb3 var(--kb-dur,2s) ease-in-out forwards; }
+.kb4 { animation: kb4 var(--kb-dur,2s) ease-in-out forwards; }
