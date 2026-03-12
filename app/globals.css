@@ -119,6 +119,36 @@ video {
   -webkit-overflow-scrolling: touch;
 }
 
+.scroll-shell {
+  scrollbar-gutter: stable both-edges;
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(142, 176, 255, 0.34) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(142, 176, 255, 0.28);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(142, 176, 255, 0.42);
+  background-clip: padding-box;
+}
+
 .pb-safe { padding-bottom: var(--safe-bottom); }
 .pt-safe { padding-top: var(--safe-top); }
 .pl-safe { padding-left: var(--safe-left); }

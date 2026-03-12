@@ -172,7 +172,7 @@ export default function HubPage() {
   }
 
   return (
-    <div className={`min-h-full overflow-y-auto px-4 sm:px-6 lg:px-7 xl:px-8 ${compactView ? 'pb-6 pt-3' : 'pb-8 pt-4'}`}>
+    <div className={`px-4 sm:px-6 lg:px-7 xl:px-8 ${compactView ? 'pb-6 pt-3' : 'pb-8 pt-4'}`}>
       <div className={`mx-auto max-w-[1720px] ${compactView ? 'space-y-4' : 'space-y-6'}`}>
         <section className="panel overflow-hidden rounded-[32px]">
           <div className={`grid xl:grid-cols-[minmax(0,1.2fr)_minmax(380px,0.8fr)] 2xl:grid-cols-[minmax(0,1.26fr)_minmax(400px,0.74fr)] ${compactView ? 'gap-4 p-5 xl:p-6' : 'gap-6 p-6 xl:p-7'}`}>

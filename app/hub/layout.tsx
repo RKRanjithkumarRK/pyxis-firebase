@@ -21,11 +21,11 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-[100svh] min-h-[100dvh] overflow-hidden bg-bg pb-safe pt-safe">
-      <div className="relative flex min-h-[100svh] min-h-[100dvh]">
+      <div className="relative flex min-h-[100svh] min-h-[100dvh] min-w-0">
         <Sidebar />
-        <main className="relative flex min-w-0 flex-1 overflow-hidden">
+        <main className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(97,211,255,0.08),transparent_26%),radial-gradient(circle_at_top_right,rgba(99,102,241,0.1),transparent_28%),radial-gradient(circle_at_bottom,rgba(45,212,191,0.08),transparent_26%)]" />
-          <div className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             {!isOpen && (
               <button
                 onClick={toggle}
@@ -35,7 +35,9 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
                 Menu
               </button>
             )}
-            {children}
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-shell">
+              {children}
+            </div>
           </div>
         </main>
       </div>

@@ -20,9 +20,9 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   if (loading || !user) return null
 
   return (
-    <div className="h-[100dvh] flex bg-bg overflow-hidden">
+    <div className="min-h-[100svh] min-h-[100dvh] flex bg-bg overflow-hidden pb-safe pt-safe">
       <Sidebar />
-      <main className="flex-1 flex flex-col min-w-0 relative">
+      <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {!isOpen && (
           <button onClick={toggle} className="self-start mt-2 ml-2 p-2 rounded-lg btn-ghost text-text-secondary hover:text-text-primary shrink-0">
             <PanelLeft size={20} />
