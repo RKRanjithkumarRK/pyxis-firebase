@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm'
 import {
   Send, Loader2, Copy, Check, Trash2, Plus, Mic, Paperclip,
   ThumbsUp, ThumbsDown, RefreshCw, Search, Bot, Sparkles,
-  ChevronRight, X, Zap,
+  ChevronRight, X, Zap, PanelLeft,
 } from 'lucide-react'
 
 // ─── Agent Definitions ────────────────────────────────────────────────────────
@@ -531,6 +531,7 @@ export default function AgentsPage() {
   const [streaming, setStreaming] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [copiedMsgIdx, setCopiedMsgIdx] = useState<number | null>(null)
+  const [mobileListOpen, setMobileListOpen] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -657,8 +658,106 @@ export default function AgentsPage() {
     return Math.floor(msgs.filter(m => m.role === 'user').length)
   }
 
+  const AgentPanel = ({ showClose, onClose }: { showClose?: boolean; onClose?: () => void }) => (
+    <>
+      <div className="px-4 pt-5 pb-4 shrink-0">
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg">
+            <Sparkles size={14} className="text-white" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-white/90 leading-tight">AI Agents</h2>
+            <p className="text-[10px] text-white/35">{AGENTS.length} Specialized Agents</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[9px] text-emerald-400/80 font-medium">Live</span>
+            </div>
+            {showClose && (
+              <button
+                onClick={onClose}
+                className="h-7 w-7 rounded-lg border border-white/10 text-white/60 hover:text-white hover:border-white/20"
+                title="Close agents list"
+              >
+                <X size={12} className="mx-auto" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div
+          className="flex items-center gap-2 px-3 py-2 rounded-xl"
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+        >
+          <Search size={12} className="text-white/30 shrink-0" />
+          <input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search agents..."
+            className="flex-1 bg-transparent text-xs text-white/70 placeholder:text-white/25 outline-none"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')}>
+              <X size={11} className="text-white/30 hover:text-white/60 transition-colors" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-1 custom-scrollbar">
+        {filteredAgents.length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-xs text-white/30">No agents match "{searchQuery}"</p>
+          </div>
+        )}
+        {filteredAgents.map(agent => (
+          <AgentCard
+            key={agent.id}
+            agent={agent}
+            isActive={agent.id === selectedAgent.id}
+            msgCount={msgCount(agent.id)}
+            onSelect={() => {
+              switchAgent(agent)
+              if (showClose) onClose?.()
+            }}
+          />
+        ))}
+      </div>
+
+      <div
+        className="px-4 py-3 shrink-0 border-t"
+        style={{ borderColor: 'rgba(255,255,255,0.05)' }}
+      >
+        <div className="flex items-center gap-2">
+          <Zap size={10} className="text-amber-400" />
+          <span className="text-[10px] text-white/30">Powered by Google Gemini</span>
+        </div>
+      </div>
+    </>
+  )
+
   return (
-    <div className="h-full flex overflow-hidden" style={{ background: 'var(--bg)' }}>
+    <div className="relative h-full flex overflow-hidden" style={{ background: 'var(--bg)' }}>
+
+      {mobileListOpen && (
+        <>
+          <button
+            className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+            onClick={() => setMobileListOpen(false)}
+            aria-label="Close agents list"
+          />
+          <div
+            className="fixed left-0 top-0 bottom-0 z-50 w-[280px] max-w-[82vw] lg:hidden flex flex-col shadow-2xl"
+            style={{
+              background: 'linear-gradient(180deg, rgba(15,15,20,0.98) 0%, rgba(10,10,15,0.99) 100%)',
+              borderRight: '1px solid rgba(255,255,255,0.06)',
+            }}
+          >
+            <AgentPanel showClose onClose={() => setMobileListOpen(false)} />
+          </div>
+        </>
+      )}
 
       {/* ── LEFT PANEL ───────────────────────────────────────────────────── */}
       <div
@@ -669,70 +768,7 @@ export default function AgentsPage() {
           borderColor: 'rgba(255,255,255,0.06)',
         }}
       >
-        {/* Panel Header */}
-        <div className="px-4 pt-5 pb-4 shrink-0">
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg">
-              <Sparkles size={14} className="text-white" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-white/90 leading-tight">AI Agents</h2>
-              <p className="text-[10px] text-white/35">{AGENTS.length} Specialized Agents</p>
-            </div>
-            <div className="ml-auto flex items-center gap-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[9px] text-emerald-400/80 font-medium">Live</span>
-            </div>
-          </div>
-
-          {/* Search */}
-          <div
-            className="flex items-center gap-2 px-3 py-2 rounded-xl"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-          >
-            <Search size={12} className="text-white/30 shrink-0" />
-            <input
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search agents..."
-              className="flex-1 bg-transparent text-xs text-white/70 placeholder:text-white/25 outline-none"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')}>
-                <X size={11} className="text-white/30 hover:text-white/60 transition-colors" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Agent List */}
-        <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-1 custom-scrollbar">
-          {filteredAgents.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-xs text-white/30">No agents match "{searchQuery}"</p>
-            </div>
-          )}
-          {filteredAgents.map(agent => (
-            <AgentCard
-              key={agent.id}
-              agent={agent}
-              isActive={agent.id === selectedAgent.id}
-              msgCount={msgCount(agent.id)}
-              onSelect={() => switchAgent(agent)}
-            />
-          ))}
-        </div>
-
-        {/* Panel Footer */}
-        <div
-          className="px-4 py-3 shrink-0 border-t"
-          style={{ borderColor: 'rgba(255,255,255,0.05)' }}
-        >
-          <div className="flex items-center gap-2">
-            <Zap size={10} className="text-amber-400" />
-            <span className="text-[10px] text-white/30">Powered by Google Gemini</span>
-          </div>
-        </div>
+        <AgentPanel />
       </div>
 
       {/* ── RIGHT PANEL ──────────────────────────────────────────────────── */}
@@ -748,6 +784,13 @@ export default function AgentsPage() {
           }}
         >
           <div className="flex items-center gap-3.5">
+            <button
+              onClick={() => setMobileListOpen(true)}
+              className="lg:hidden flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 text-white/70 hover:text-white hover:border-white/20"
+              title="Open agents list"
+            >
+              <PanelLeft size={16} />
+            </button>
             {/* Avatar */}
             <div
               className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${selectedAgent.color} flex items-center justify-center shadow-xl shrink-0`}

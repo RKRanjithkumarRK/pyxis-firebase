@@ -452,10 +452,10 @@ export default function GeneratePage() {
 
       {/* ══ VIDEO TABS ══ */}
       {(tab === 'txt2vid' || tab === 'img2vid') && (
-        <div className="flex flex-1 min-h-0 overflow-hidden">
+        <div className="flex flex-1 min-h-0 flex-col lg:flex-row overflow-hidden">
 
           {/* Left: Controls */}
-          <div className="w-[360px] shrink-0 min-h-0 border-r border-border overflow-y-auto p-5 space-y-5">
+          <div className="w-full lg:w-[360px] lg:shrink-0 min-h-0 border-r border-border overflow-y-visible lg:overflow-y-auto p-5 space-y-5">
 
             {/* Provider info banner */}
             <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-violet-500/5 border border-violet-500/20">
@@ -580,7 +580,7 @@ export default function GeneratePage() {
           </div>
 
           {/* Right: Preview panel */}
-          <div className="flex-1 flex flex-col overflow-hidden bg-[#0d0d0d]">
+          <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-[#0d0d0d]">
 
             <div className="flex-1 flex flex-col items-center justify-center p-8 overflow-hidden">
 
