@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth-helper'
 import { adminDb } from '@/lib/firebase-admin'
+import { defaultModel } from '@/lib/models'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
 
   const ref = await adminDb.collection(`users/${user.uid}/conversations`).add({
     title: title || 'New Chat',
-    model: model || 'meta-llama/llama-3.3-70b-instruct',
+    model: model || defaultModel,
     createdAt: now,
     updatedAt: now,
     archived: false,
