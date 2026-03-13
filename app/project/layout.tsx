@@ -21,7 +21,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <AppShell>
-      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         {!isOpen && (
           <button onClick={toggle} className="self-start mt-2 ml-2 p-2 rounded-lg btn-ghost text-text-secondary hover:text-text-primary shrink-0">
             <PanelLeft size={20} />

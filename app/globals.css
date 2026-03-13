@@ -193,8 +193,9 @@ textarea::placeholder {
 }
 
 .scrollable {
-  scrollbar-gutter: stable;
+  scrollbar-gutter: stable both-edges;
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .custom-scrollbar {
@@ -225,6 +226,7 @@ textarea::placeholder {
 .app-shell {
   display: flex;
   height: 100svh;
+  height: 100dvh;
   min-height: 100svh;
   width: 100%;
   background: var(--bg);
@@ -276,12 +278,17 @@ textarea::placeholder {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
+  min-width: 0;
   padding: 1rem 0.75rem 0;
 }
 
 .sidebar-scroll {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  min-width: 0;
   padding: 0.5rem 0 1rem;
 }
 
@@ -315,6 +322,8 @@ textarea::placeholder {
 
 .main-scroll {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 32px;
@@ -560,6 +569,7 @@ textarea::placeholder {
     top: 0;
     left: 0;
     height: 100svh;
+    height: 100dvh;
     transform: translateX(-100%);
   }
 
@@ -603,6 +613,35 @@ textarea::placeholder {
 
   .main-scroll {
     padding: 18px 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  .main-scroll {
+    padding: 14px 10px 12px;
+  }
+
+  .chat-body {
+    padding: 18px 16px 12px;
+  }
+
+  .chat-input-area {
+    padding: 10px 14px calc(10px + var(--safe-bottom));
+  }
+}
+
+@media (max-height: 720px) {
+  .main-scroll {
+    padding: 16px 14px 14px;
+  }
+
+  .chat-shell {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .chat-body {
+    padding: 16px 18px 10px;
   }
 }
 

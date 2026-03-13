@@ -13,3 +13,4 @@ node_modules
 .env.vercel.prod
 build.log
 .tmp-review-frames/
+.tmp-qa/
