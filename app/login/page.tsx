@@ -124,7 +124,7 @@ export default function LoginPage() {
     <div className="min-h-[100svh] min-h-[100dvh] overflow-y-auto bg-bg text-text-primary">
       <div className="mx-auto flex min-h-[100svh] min-h-[100dvh] w-full max-w-[1600px] items-center px-4 py-6 sm:px-6 sm:py-8 lg:px-10 xl:px-12">
         <div className="grid w-full items-center gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(440px,520px)] 2xl:gap-10">
-          <section className="relative overflow-hidden rounded-[32px] panel px-6 py-7 sm:px-8 sm:py-9 xl:px-10 xl:py-10">
+          <section className="order-2 xl:order-1 relative overflow-hidden rounded-[32px] panel px-6 py-7 sm:px-8 sm:py-9 xl:px-10 xl:py-10">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(97,211,255,0.12),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(99,102,241,0.12),transparent_32%)]" />
 
             <div className="relative flex h-full flex-col justify-between gap-8">
@@ -177,7 +177,7 @@ export default function LoginPage() {
             </div>
           </section>
 
-          <section className="relative">
+          <section className="order-1 xl:order-2 relative">
             <div className="pointer-events-none absolute inset-0 rounded-[32px] bg-[radial-gradient(circle_at_top,rgba(97,211,255,0.14),transparent_38%),radial-gradient(circle_at_bottom,rgba(99,102,241,0.16),transparent_42%)]" />
 
             <div className="relative mx-auto w-full max-w-[520px]">

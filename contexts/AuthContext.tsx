@@ -51,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true
     let unsubscribe = () => {}
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null
 
     const bootstrapAuth = async () => {
       if (!firebaseEnabled || !auth) {
@@ -68,7 +69,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!mounted) return
 
+      fallbackTimer = setTimeout(() => {
+        if (mounted) setLoading(false)
+      }, 4000)
+
       unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        if (fallbackTimer) {
+          clearTimeout(fallbackTimer)
+          fallbackTimer = null
+        }
         setUser(firebaseUser)
         setLoading(false)
         if (firebaseUser && db) {
@@ -97,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       mounted = false
       unsubscribe()
+      if (fallbackTimer) clearTimeout(fallbackTimer)
     }
   }, [])
 
