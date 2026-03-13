@@ -59,6 +59,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
+      fallbackTimer = setTimeout(() => {
+        if (mounted) setLoading(false)
+      }, 2000)
+
       try {
         await setPersistence(auth, browserLocalPersistence)
       } catch {
@@ -68,10 +72,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (!mounted) return
-
-      fallbackTimer = setTimeout(() => {
-        if (mounted) setLoading(false)
-      }, 4000)
 
       unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         if (fallbackTimer) {
