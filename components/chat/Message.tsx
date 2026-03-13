@@ -234,125 +234,110 @@ export default function Message({ message, onRegenerate, isLast, index, onEdit }
     setTimeout(() => setCopied(false), 2000)
   }
 
-  if (isUser) {
-    return (
-      <div
-        className="msg-in flex justify-end items-end gap-2 w-full max-w-3xl mx-auto px-4 py-1.5"
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-      >
-        {/* Action buttons: copy + edit — always visible on touch, hover-reveal on desktop */}
-        <div className={`flex items-center gap-0.5 transition-opacity ${hovered ? 'opacity-100' : 'opacity-0 [@media(hover:none)]:opacity-100'}`}>
-          <button
-            onClick={handleCopy}
-            className="p-1.5 rounded-lg text-text-tertiary hover:text-text-secondary hover:bg-surface-hover transition-colors"
-            title="Copy message"
-          >
-            {copied ? <Check size={14} /> : <Copy size={14} />}
-          </button>
-          {onEdit && index !== undefined && (
-            <button
-              onClick={() => onEdit(message.content, index)}
-              className="p-1.5 rounded-lg text-text-tertiary hover:text-text-secondary hover:bg-surface-hover transition-colors"
-              title="Edit message"
-            >
-              <Pencil size={14} />
-            </button>
-          )}
-        </div>
-        <div className="max-w-[80%] px-5 py-3.5 rounded-3xl bg-surface text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap break-words">
-          {message.content}
-          {message.imageUrl && (
-            <img src={message.imageUrl} alt="Generated" className="mt-2 rounded-xl max-w-full" />
-          )}
-        </div>
-      </div>
-    )
-  }
+  const bubbleClass = `message-bubble ${isUser ? 'user' : 'assistant'}`
 
   return (
     <div
-      className="msg-in w-full max-w-3xl mx-auto px-4 py-1.5"
+      className={`message-row ${isUser ? 'user' : ''}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div className="flex gap-4">
+      {!isUser && (
         <div className="shrink-0 mt-1">
           <PyxisIcon />
         </div>
-        <div className="flex-1 min-w-0 overflow-hidden">
-          <div className="text-[15px] leading-relaxed text-text-primary">
-            <div className="markdown-body">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  pre({ children }) {
-                    return <>{children}</>
-                  },
-                  code({ node, className, children, ...props }: any) {
-                    const match = /language-(\w+)/.exec(className || '')
-                    const language = match ? match[1] : ''
-                    const code = String(children).replace(/\n$/, '')
-                    const isBlock = code.includes('\n') || !!language
+      )}
 
-                    if (!isBlock) {
-                      return (
-                        <code
-                          className="px-1.5 py-0.5 rounded-md bg-surface border border-border/50 font-mono text-[0.85em] text-text-primary"
-                          {...props}
-                        >
-                          {children}
-                        </code>
-                      )
-                    }
+      <div className={bubbleClass}>
+        <div className="markdown-body text-text-primary">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              pre({ children }) {
+                return <>{children}</>
+              },
+              code({ node, className, children, ...props }: any) {
+                const match = /language-(\w+)/.exec(className || '')
+                const language = match ? match[1] : ''
+                const code = String(children).replace(/\n$/, '')
+                const isBlock = code.includes('\n') || !!language
 
-                    return <CodeBlock language={language} code={code} />
-                  },
-                }}
-              >
-                {message.content}
-              </ReactMarkdown>
-            </div>
-            {message.imageUrl && (
-              <img src={message.imageUrl} alt="Generated" className="mt-3 rounded-2xl max-w-sm" />
-            )}
-          </div>
+                if (!isBlock) {
+                  return (
+                    <code
+                      className="px-1.5 py-0.5 rounded-md bg-surface border border-border/50 font-mono text-[0.85em] text-text-primary"
+                      {...props}
+                    >
+                      {children}
+                    </code>
+                  )
+                }
 
-          {/* Action bar — visible on hover */}
-          <div className={`flex items-center gap-0.5 mt-2 transition-opacity ${hovered ? 'opacity-100' : 'opacity-0 [@media(hover:none)]:opacity-100'}`}>
-            <button
-              onClick={handleCopy}
-              className="p-1.5 rounded-lg text-text-tertiary hover:text-text-secondary hover:bg-surface-hover transition-colors"
-              title="Copy response"
-            >
-              {copied ? <Check size={15} /> : <Copy size={15} />}
-            </button>
-            <button
-              onClick={() => setLiked(liked === true ? null : true)}
-              className={`p-1.5 rounded-lg transition-colors ${liked === true ? 'text-accent' : 'text-text-tertiary hover:text-text-secondary hover:bg-surface-hover'}`}
-              title="Good response"
-            >
-              <ThumbsUp size={15} />
-            </button>
-            <button
-              onClick={() => setLiked(liked === false ? null : false)}
-              className={`p-1.5 rounded-lg transition-colors ${liked === false ? 'text-danger' : 'text-text-tertiary hover:text-text-secondary hover:bg-surface-hover'}`}
-              title="Bad response"
-            >
-              <ThumbsDown size={15} />
-            </button>
-            {isLast && onRegenerate && (
+                return <CodeBlock language={language} code={code} />
+              },
+            }}
+          >
+            {message.content}
+          </ReactMarkdown>
+        </div>
+
+        {message.imageUrl && (
+          <img src={message.imageUrl} alt="Generated" className="mt-3 rounded-2xl max-w-sm" />
+        )}
+
+        <div className="message-actions">
+          <button
+            onClick={handleCopy}
+            className="p-1 rounded-lg text-text-secondary transition-colors hover:text-text-primary hover:bg-white/5"
+            title={isUser ? 'Copy message' : 'Copy response'}
+          >
+            {copied ? <Check size={15} /> : <Copy size={15} />}
+          </button>
+
+          {isUser ? (
+            onEdit && index !== undefined && (
               <button
-                onClick={onRegenerate}
-                className="p-1.5 rounded-lg text-text-tertiary hover:text-text-secondary hover:bg-surface-hover transition-colors"
-                title="Regenerate response"
+                onClick={() => onEdit(message.content, index)}
+                className="p-1 rounded-lg text-text-secondary transition-colors hover:text-text-primary hover:bg-white/5"
+                title="Edit message"
               >
-                <RefreshCw size={15} />
+                <Pencil size={15} />
               </button>
-            )}
-          </div>
+            )
+          ) : (
+            <>
+              <button
+                onClick={() => setLiked(liked === true ? null : true)}
+                className={`p-1 rounded-lg transition-colors ${
+                  liked === true ? 'text-accent' : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                }`}
+                title="Good response"
+              >
+                <ThumbsUp size={15} />
+              </button>
+              <button
+                onClick={() => setLiked(liked === false ? null : false)}
+                className={`p-1 rounded-lg transition-colors ${
+                  liked === false ? 'text-danger' : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                }`}
+                title="Bad response"
+              >
+                <ThumbsDown size={15} />
+              </button>
+              {isLast && onRegenerate && (
+                <button
+                  onClick={onRegenerate}
+                  className="p-1 rounded-lg text-text-secondary transition-colors hover:text-text-primary hover:bg-white/5"
+                  title="Regenerate response"
+                >
+                  <RefreshCw size={15} />
+                </button>
+              )}
+            </>
+          )}
         </div>
       </div>
+
     </div>
   )
 }

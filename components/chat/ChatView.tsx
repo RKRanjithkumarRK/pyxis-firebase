@@ -303,34 +303,42 @@ export default function ChatView({ conversationId }: Props) {
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      {/* Top bar — sidebar toggle (when closed) sits inline left of ModelSelector */}
-      <div className="flex items-center gap-1 px-2 py-2 shrink-0">
-        {!isOpen && (
-          <button
-            onClick={toggle}
-            className="p-2 rounded-lg btn-ghost text-text-secondary hover:text-text-primary shrink-0"
-            title="Open sidebar"
-          >
-            <PanelLeft size={20} />
-          </button>
-        )}
-        <ModelSelector />
+      <div className="chat-shell">
+        <div className="chat-board">
+          <div className="chat-header">
+            <div className="flex items-center gap-3">
+              {!isOpen && (
+                <button
+                  onClick={toggle}
+                  className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border/80 bg-surface text-text-secondary transition-colors hover:border-border hover:text-text-primary"
+                  title="Open sidebar"
+                >
+                  <PanelLeft size={18} />
+                </button>
+              )}
+              <ModelSelector />
+            </div>
+            <div className="chip text-[11px] text-text-muted">
+              Active lane · {model}
+            </div>
+          </div>
+
+          <div className="chat-body">
+            {messages.length === 0 ? (
+              <WelcomeScreen onSend={handleSend} />
+            ) : (
+              <MessageList onRegenerate={handleRegenerate} onEdit={handleEditMessage} />
+            )}
+          </div>
+
+          <ChatInput
+            onSend={handleSend}
+            onStop={handleStop}
+            prefill={editContent}
+            onPrefillConsumed={() => setEditContent(null)}
+          />
+        </div>
       </div>
-
-      {/* Messages or welcome */}
-      {messages.length === 0 ? (
-        <WelcomeScreen onSend={handleSend} />
-      ) : (
-        <MessageList onRegenerate={handleRegenerate} onEdit={handleEditMessage} />
-      )}
-
-      {/* Input */}
-      <ChatInput
-        onSend={handleSend}
-        onStop={handleStop}
-        prefill={editContent}
-        onPrefillConsumed={() => setEditContent(null)}
-      />
     </div>
   )
 }

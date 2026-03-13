@@ -8,7 +8,7 @@ import { useSidebar } from '@/contexts/SidebarContext'
 
 export default function UserMenu() {
   const { user, signOut } = useAuth()
-  const { setSettingsOpen } = useSidebar()
+  const { setSettingsOpen, isOpen } = useSidebar()
   const [open, setOpen] = useState(false)
   const router = useRouter()
   const ref = useRef<HTMLDivElement>(null)
@@ -31,10 +31,12 @@ export default function UserMenu() {
   const initial = (user.displayName || user.email || '?')[0].toUpperCase()
 
   return (
-    <div ref={ref} className="relative p-3">
+    <div ref={ref} className={`relative ${isOpen ? 'p-3' : 'px-2 py-2'}`}>
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-3 rounded-[24px] border border-border/80 bg-white/8 px-3 py-3 text-left transition-colors hover:border-border-light hover:bg-white/10"
+        className={`flex w-full items-center gap-3 rounded-[24px] border border-border/80 bg-white/8 px-3 py-3 text-left transition-colors ${
+          isOpen ? 'hover:border-border hover:bg-white/12' : 'justify-center'
+        }`}
       >
         <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white/12 text-sm font-semibold text-cyan-200">
           {user.photoURL ? (
@@ -43,13 +45,17 @@ export default function UserMenu() {
             initial
           )}
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-text-primary">{user.displayName || 'Workspace user'}</p>
-          <p className="truncate text-xs text-text-tertiary">{user.email || 'Guest session active'}</p>
-        </div>
-        <div className="hidden rounded-full border border-border/70 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-text-tertiary sm:block">
-          Active
-        </div>
+        {isOpen && (
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-text-primary">{user.displayName || 'Workspace user'}</p>
+            <p className="truncate text-xs text-text-tertiary">{user.email || 'Guest session active'}</p>
+          </div>
+        )}
+        {isOpen && (
+          <div className="rounded-full border border-border/70 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-text-tertiary">
+            Active
+          </div>
+        )}
         <ChevronUp size={16} className={`text-text-tertiary transition-transform ${open ? '' : 'rotate-180'}`} />
       </button>
 

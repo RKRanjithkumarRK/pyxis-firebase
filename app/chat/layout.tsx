@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { SidebarProvider } from '@/contexts/SidebarContext'
 import { ChatProvider } from '@/contexts/ChatContext'
-import Sidebar from '@/components/sidebar/Sidebar'
+import AppShell from '@/components/layout/AppShell'
 
 function ChatLayoutInner({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -17,7 +17,7 @@ function ChatLayoutInner({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="app-shell items-center justify-center bg-bg">
+      <div className="flex min-h-[100svh] min-h-[100dvh] items-center justify-center bg-bg">
         <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
       </div>
     )
@@ -26,12 +26,11 @@ function ChatLayoutInner({ children }: { children: React.ReactNode }) {
   if (!user) return null
 
   return (
-    <div className="app-shell bg-bg pb-safe pt-safe">
-      <Sidebar />
-      <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+    <AppShell>
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {children}
-      </main>
-    </div>
+      </div>
+    </AppShell>
   )
 }
 

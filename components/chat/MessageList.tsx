@@ -30,20 +30,20 @@ export default function MessageList({ onRegenerate, onEdit }: Props) {
   useEffect(() => {
     if (!containerRef.current) return
     if (isStreaming) {
-      // Instant scroll during streaming — prevents smooth-scroll overshooting
-      // which visually clips the first characters of new content
       containerRef.current.scrollTop = containerRef.current.scrollHeight
     } else {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages, isStreaming])
 
-  // Find the last assistant message id
   const lastAssistantId = [...messages].reverse().find(m => m.role === 'assistant')?.id ?? null
 
   return (
-    <div ref={containerRef} className="flex-1 overflow-y-auto">
-      <div className="py-6 pb-2">
+    <div
+      ref={containerRef}
+      className="h-full overflow-y-auto pr-1 custom-scrollbar scrollable"
+    >
+      <div className="chat-messages">
         {messages.map((msg, index) => (
           <Message
             key={msg.id}
@@ -55,15 +55,9 @@ export default function MessageList({ onRegenerate, onEdit }: Props) {
           />
         ))}
         {isStreaming && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
-          <div className="w-full max-w-3xl mx-auto px-4 py-1.5">
-            <div className="flex gap-4">
-              <div className="shrink-0 mt-1">
-                <PyxisIcon />
-              </div>
-              <div className="pt-2">
-                <TypingIndicator />
-              </div>
-            </div>
+          <div className="flex items-center gap-3">
+            <PyxisIcon />
+            <TypingIndicator />
           </div>
         )}
         <div ref={bottomRef} />

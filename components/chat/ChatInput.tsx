@@ -182,8 +182,8 @@ export default function ChatInput({ onSend, onStop, onVoiceMode, disabled, prefi
   const hasContent = !!(input.trim() || attachment)
 
   return (
-    <div className="px-4 pb-4 pt-2 shrink-0">
-      <div className="max-w-3xl mx-auto">
+    <div className="chat-input-area">
+      <div className="chat-input-card">
 
         {/* Mic permission / error dialog */}
         {showMicPrompt && (
