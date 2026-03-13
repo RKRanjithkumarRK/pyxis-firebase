@@ -37,14 +37,27 @@ export default function Sidebar() {
               {isOpen && (
                 <>
                   <div className="px-4 pb-3">
-                    <div className="rounded-[20px] border border-border/80 bg-white/5 px-4 py-3">
-                      <p className="text-[11px] uppercase tracking-[0.28em] text-text-tertiary">Workspace status</p>
-                      <div className="mt-3 flex items-center justify-between">
+                    <div className="rounded-[24px] border border-border/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.14),rgba(255,255,255,0.06))] px-4 py-4">
+                      <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-sm font-semibold text-text-primary">Operational</p>
-                          <p className="text-xs text-text-tertiary">Control plane online</p>
+                          <p className="text-[11px] uppercase tracking-[0.28em] text-text-tertiary">Workspace status</p>
+                          <p className="mt-2 text-base font-semibold text-text-primary">Operational</p>
+                          <p className="text-xs text-text-tertiary">Control plane online and ready for daily work</p>
                         </div>
-                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.65)]" />
+                        <span className="pill shrink-0 text-[11px] text-emerald-200">
+                          <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.65)]" />
+                          Healthy
+                        </span>
+                      </div>
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <div className="rounded-[18px] border border-border/70 bg-white/8 px-3 py-3">
+                          <p className="text-[10px] uppercase tracking-[0.24em] text-text-tertiary">Models</p>
+                          <p className="mt-1 text-sm font-semibold text-text-primary">5 lanes</p>
+                        </div>
+                        <div className="rounded-[18px] border border-border/70 bg-white/8 px-3 py-3">
+                          <p className="text-[10px] uppercase tracking-[0.24em] text-text-tertiary">Surfaces</p>
+                          <p className="mt-1 text-sm font-semibold text-text-primary">Chat, research, code</p>
+                        </div>
                       </div>
                     </div>
                   </div>

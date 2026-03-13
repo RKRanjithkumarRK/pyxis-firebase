@@ -34,9 +34,9 @@ export default function UserMenu() {
     <div ref={ref} className="relative p-3">
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-3 rounded-[22px] border border-border/80 bg-white/5 px-3 py-3 text-left transition-colors hover:border-border-light hover:bg-white/8"
+        className="flex w-full items-center gap-3 rounded-[24px] border border-border/80 bg-white/8 px-3 py-3 text-left transition-colors hover:border-border-light hover:bg-white/10"
       >
-        <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white/10 text-sm font-semibold text-cyan-200">
+        <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white/12 text-sm font-semibold text-cyan-200">
           {user.photoURL ? (
             <img src={user.photoURL} alt="" className="h-11 w-11 object-cover" />
           ) : (
@@ -47,12 +47,15 @@ export default function UserMenu() {
           <p className="truncate text-sm font-semibold text-text-primary">{user.displayName || 'Workspace user'}</p>
           <p className="truncate text-xs text-text-tertiary">{user.email || 'Guest session active'}</p>
         </div>
+        <div className="hidden rounded-full border border-border/70 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-text-tertiary sm:block">
+          Active
+        </div>
         <ChevronUp size={16} className={`text-text-tertiary transition-transform ${open ? '' : 'rotate-180'}`} />
       </button>
 
       {open && (
         <div className="absolute bottom-full left-3 right-3 z-50 mb-2 rounded-[24px] border border-border/80 bg-sidebar/95 p-2 shadow-2xl backdrop-blur-2xl">
-          <div className="mb-2 flex items-center gap-2 rounded-[18px] bg-white/5 px-3 py-3">
+          <div className="mb-2 flex items-center gap-2 rounded-[18px] bg-white/8 px-3 py-3">
             <ShieldCheck size={16} className="text-cyan-300" />
             <div>
               <p className="text-xs font-semibold text-text-primary">Workspace security</p>

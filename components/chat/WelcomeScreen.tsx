@@ -1,192 +1,168 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Pencil, Code2, FileSearch, Lightbulb, Mail, BookOpen, Map, Globe, Radar, Workflow } from 'lucide-react'
+import {
+  ArrowRight,
+  BookOpen,
+  Bot,
+  Briefcase,
+  Code2,
+  FileSearch,
+  Globe,
+  PenTool,
+  Radar,
+  Workflow,
+} from 'lucide-react'
 
-const CAPABILITY_PILLS = ['Write', 'Code', 'Analyze', 'Research', 'Strategize', 'Summarize', 'Translate', 'Debug', 'Automate']
-
-const PROMPT_CARDS = [
+const HIGHLIGHTS = [
   {
-    icon: Mail,
-    title: 'Write a cold email',
-    subtitle: 'To a potential client or investor',
-    prompt: 'Help me write a compelling cold email to a potential client for my business.',
-    gradient: 'from-blue-500/20 to-indigo-500/20',
-    iconColor: 'text-blue-400',
-    borderHover: 'hover:border-blue-500/50',
-  },
-  {
-    icon: Code2,
-    title: 'Debug my code',
-    subtitle: 'Paste code and describe the issue',
-    prompt: 'Help me debug this code. I\'ll paste it below and describe what\'s going wrong.',
-    gradient: 'from-emerald-500/20 to-teal-500/20',
-    iconColor: 'text-emerald-400',
-    borderHover: 'hover:border-emerald-500/50',
-  },
-  {
-    icon: FileSearch,
-    title: 'Summarize an article',
-    subtitle: 'Paste text and get key points',
-    prompt: 'Please summarize the following article and extract the key points and insights.',
-    gradient: 'from-amber-500/20 to-orange-500/20',
-    iconColor: 'text-amber-400',
-    borderHover: 'hover:border-amber-500/50',
-  },
-  {
+    title: 'Research with structure',
+    detail: 'Turn live web signals into clean briefs, source-backed memos, and next actions.',
     icon: Radar,
-    title: 'Run deep research',
-    subtitle: 'Competitive research with cited sources',
-    prompt: 'Help me perform deep research on a topic and structure the findings into a competitive brief with key insights, risks, and next moves.',
-    gradient: 'from-cyan-500/20 to-indigo-500/20',
-    iconColor: 'text-cyan-400',
-    borderHover: 'hover:border-cyan-500/50',
   },
   {
-    icon: Map,
-    title: 'Build a roadmap',
-    subtitle: 'For a product, project or goal',
-    prompt: 'Help me build a detailed roadmap for my project. I\'ll describe what I\'m working on.',
-    gradient: 'from-purple-500/20 to-violet-500/20',
-    iconColor: 'text-purple-400',
-    borderHover: 'hover:border-purple-500/50',
+    title: 'Build with context',
+    detail: 'Move from coding questions to debugging, rewrites, and workflow design in one place.',
+    icon: Code2,
   },
   {
-    icon: BookOpen,
-    title: 'Explain a concept',
-    subtitle: 'Like I\'m 5 or like an expert',
-    prompt: 'Explain the following concept to me — start simple, then go deeper if I ask.',
-    gradient: 'from-rose-500/20 to-pink-500/20',
-    iconColor: 'text-rose-400',
-    borderHover: 'hover:border-rose-500/50',
-  },
-  {
-    icon: Lightbulb,
-    title: 'Brainstorm ideas',
-    subtitle: 'For any project or challenge',
-    prompt: 'Help me brainstorm creative ideas for my project. Here\'s what I\'m working on:',
-    gradient: 'from-yellow-500/20 to-amber-500/20',
-    iconColor: 'text-yellow-400',
-    borderHover: 'hover:border-yellow-500/50',
-  },
-  {
-    icon: Pencil,
-    title: 'Write a LinkedIn post',
-    subtitle: 'Thought leadership content',
-    prompt: 'Help me write an engaging LinkedIn post on a topic I care about. I\'ll share the topic.',
-    gradient: 'from-sky-500/20 to-blue-500/20',
-    iconColor: 'text-sky-400',
-    borderHover: 'hover:border-sky-500/50',
-  },
-  {
-    icon: Globe,
-    title: 'Create a study plan',
-    subtitle: 'For any subject or exam',
-    prompt: 'Help me create a structured study plan. I\'ll tell you what I\'m studying and my timeline.',
-    gradient: 'from-cyan-500/20 to-teal-500/20',
-    iconColor: 'text-cyan-400',
-    borderHover: 'hover:border-cyan-500/50',
-  },
-  {
-    icon: Workflow,
-    title: 'Design a workflow',
-    subtitle: 'Turn a task into an AI system',
-    prompt: 'Help me design an AI workflow with triggers, steps, decision points, and outputs for this business process.',
-    gradient: 'from-fuchsia-500/20 to-violet-500/20',
-    iconColor: 'text-fuchsia-400',
-    borderHover: 'hover:border-fuchsia-500/50',
+    title: 'Write for real work',
+    detail: 'Draft operator notes, strategy documents, launch copy, and client-facing messaging faster.',
+    icon: PenTool,
   },
 ]
 
-const PROVIDERS = [
-  { name: 'Gemini 2.5', color: 'bg-blue-500' },
-  { name: 'Llama 3.3', color: 'bg-orange-500' },
-  { name: 'Mistral', color: 'bg-rose-500' },
-  { name: 'DeepSeek', color: 'bg-emerald-500' },
+const STARTERS = [
+  {
+    title: 'Draft an executive brief',
+    subtitle: 'Turn raw notes into a board-ready summary.',
+    prompt: 'Turn my notes into a sharp executive brief with key decisions, risks, and next actions.',
+    icon: Briefcase,
+  },
+  {
+    title: 'Run deep research',
+    subtitle: 'Build a cited competitive or market report.',
+    prompt: 'Run deep research on this topic and structure the result into a cited competitive brief.',
+    icon: Radar,
+  },
+  {
+    title: 'Explain and simplify',
+    subtitle: 'Break down a concept without losing nuance.',
+    prompt: 'Explain this concept clearly, starting simple and then going deeper where it matters.',
+    icon: BookOpen,
+  },
+  {
+    title: 'Debug and improve code',
+    subtitle: 'Find the bug and suggest the clean fix.',
+    prompt: 'Help me debug this code, explain the root cause, and give me the cleanest fix.',
+    icon: Code2,
+  },
+  {
+    title: 'Summarize a long source',
+    subtitle: 'Extract the signal from a dense document.',
+    prompt: 'Summarize this document and pull out the key points, risks, and useful takeaways.',
+    icon: FileSearch,
+  },
+  {
+    title: 'Design an AI workflow',
+    subtitle: 'Map a business task into a repeatable system.',
+    prompt: 'Design an AI workflow for this process with steps, decisions, approvals, and outputs.',
+    icon: Workflow,
+  },
 ]
+
+const PROVIDERS = ['Gemini 2.5', 'Llama 3.3', 'Mistral', 'DeepSeek']
 
 interface Props {
   onSend?: (text: string) => void
 }
 
 export default function WelcomeScreen({ onSend }: Props) {
-  const [activePill, setActivePill] = useState(0)
-  const [cardOffset] = useState(() => Math.floor(Math.random() * PROMPT_CARDS.length))
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActivePill(prev => (prev + 1) % CAPABILITY_PILLS.length)
-    }, 1800)
-    return () => clearInterval(interval)
-  }, [])
-
-  const visibleCards = Array.from({ length: 4 }, (_, i) => PROMPT_CARDS[(cardOffset + i) % PROMPT_CARDS.length])
-
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-4 pb-10 gap-8 overflow-y-auto">
+    <div className="flex-1 overflow-y-auto px-4 pb-8 pt-6 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+        <section className="panel relative overflow-hidden rounded-[32px] p-6 sm:p-8">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(82,180,255,0.12),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(105,216,180,0.12),transparent_34%)]" />
+          <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(300px,0.92fr)]">
+            <div>
+              <div className="pill text-xs text-text-secondary">
+                <Bot size={12} />
+                Session ready
+              </div>
+              <h1 className="mt-4 font-display text-[clamp(2rem,3vw,3.6rem)] leading-[0.96] text-text-primary">
+                Start from a clearer brief, not a blank page.
+              </h1>
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-text-secondary sm:text-[15px]">
+                Pyxis One is set up for everyday work across research, writing, code, and planning. Pick a starter below or ask directly in your own words.
+              </p>
 
-      {/* Animated heading */}
-      <div className="text-center space-y-3">
-        <h1 className="text-4xl md:text-5xl font-display font-semibold tracking-tight animate-shimmer bg-gradient-to-r from-text-primary via-accent to-text-primary bg-[length:200%_auto] bg-clip-text text-transparent">
-          Launch your next move.
-        </h1>
-        <p className="max-w-2xl text-sm leading-7 text-text-secondary">
-          Pyxis One now supports faster chat, deeper research, stronger strategy work, and multi-step AI execution from one workspace.
-        </p>
+              <div className="mt-5 grid gap-3 md:grid-cols-3">
+                {HIGHLIGHTS.map((item) => (
+                  <div key={item.title} className="glass-panel rounded-[24px] p-4">
+                    <item.icon className="text-cyan-300" size={18} />
+                    <p className="mt-3 text-sm font-semibold text-text-primary">{item.title}</p>
+                    <p className="mt-1.5 text-xs leading-6 text-text-secondary">{item.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-        {/* Rotating capability pills */}
-        <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
-          {CAPABILITY_PILLS.map((pill, i) => (
-            <span
-              key={pill}
-              className={`px-3 py-1 rounded-full text-sm font-medium border transition-all duration-500 ${
-                i === activePill
-                  ? 'bg-accent/15 border-accent/50 text-accent scale-105'
-                  : 'bg-surface border-border/40 text-text-tertiary'
-              }`}
-            >
-              {pill}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Prompt cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
-        {visibleCards.map((card) => {
-          const Icon = card.icon
-          return (
-            <button
-              key={card.title}
-              onClick={() => onSend?.(card.prompt)}
-              className={`group relative flex items-start gap-3 p-4 rounded-2xl bg-surface border border-border/60 ${card.borderHover} hover:bg-surface-hover text-left transition-all duration-200 hover:shadow-lg hover:shadow-black/10 hover:-translate-y-0.5`}
-            >
-              {/* Gradient background on hover */}
-              <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-200`} />
-
-              <div className={`relative shrink-0 p-2 rounded-xl bg-surface-hover group-hover:bg-white/5 transition-colors`}>
-                <Icon size={18} className={card.iconColor} />
+            <div className="glass-panel rounded-[28px] p-5">
+              <p className="text-xs uppercase tracking-[0.28em] text-text-tertiary">How people start</p>
+              <div className="mt-4 space-y-3">
+                {[
+                  'Turn notes into an executive update',
+                  'Compare competitors with cited sources',
+                  'Debug a failing build or script',
+                  'Plan a workflow for a manual process',
+                ].map((item) => (
+                  <div key={item} className="flex items-start gap-3 rounded-[18px] bg-white/8 px-4 py-3">
+                    <span className="mt-1 h-2 w-2 rounded-full bg-cyan-300" />
+                    <p className="text-sm leading-6 text-text-secondary">{item}</p>
+                  </div>
+                ))}
               </div>
 
-              <div className="relative min-w-0">
-                <div className="text-sm font-semibold text-text-primary">{card.title}</div>
-                <div className="text-xs text-text-tertiary mt-0.5 leading-relaxed">{card.subtitle}</div>
+              <div className="mt-5 rounded-[22px] border border-border/70 bg-white/8 px-4 py-4">
+                <p className="text-xs uppercase tracking-[0.24em] text-text-tertiary">Model lanes</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {PROVIDERS.map((provider) => (
+                    <span key={provider} className="rounded-full border border-border/70 bg-white/10 px-3 py-1.5 text-xs font-semibold text-text-secondary">
+                      {provider}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+          {STARTERS.map((starter) => (
+            <button
+              key={starter.title}
+              onClick={() => onSend?.(starter.prompt)}
+              className="group panel rounded-[28px] p-5 text-left transition-transform hover:-translate-y-1"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-cyan-300">
+                  <starter.icon size={18} />
+                </div>
+                <span className="pill text-[11px] text-text-tertiary">Starter</span>
+              </div>
+              <p className="mt-5 font-display text-[1.35rem] leading-tight text-text-primary">{starter.title}</p>
+              <p className="mt-2 text-sm leading-6 text-text-secondary">{starter.subtitle}</p>
+              <div className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-text-secondary transition-colors group-hover:text-text-primary">
+                Launch prompt
+                <ArrowRight size={14} />
               </div>
             </button>
-          )
-        })}
-      </div>
+          ))}
+        </section>
 
-      {/* Bottom provider strip */}
-      <div className="flex items-center gap-2 text-xs text-text-tertiary">
-        <span>Powered by</span>
-        {PROVIDERS.map((p, i) => (
-          <span key={p.name} className="flex items-center gap-1.5">
-            <span className={`w-1.5 h-1.5 rounded-full ${p.color} opacity-80`} />
-            <span>{p.name}</span>
-            {i < PROVIDERS.length - 1 && <span className="text-border ml-1">·</span>}
-          </span>
-        ))}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-text-tertiary">
+          <Globe size={13} />
+          <span>Search, writing, planning, debugging, and structured AI execution from one workspace.</span>
+        </div>
       </div>
     </div>
   )
