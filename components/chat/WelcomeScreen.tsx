@@ -78,7 +78,7 @@ interface Props {
 
 export default function WelcomeScreen({ onSend }: Props) {
   return (
-    <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="flex-1 min-h-0 overflow-y-auto space-y-6 px-4 py-6 sm:px-6 lg:px-8 custom-scrollbar scrollable">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
         <section className="panel relative overflow-hidden rounded-[32px] p-6 sm:p-8">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(82,180,255,0.12),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(105,216,180,0.12),transparent_34%)]" />

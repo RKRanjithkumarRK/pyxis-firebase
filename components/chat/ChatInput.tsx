@@ -17,7 +17,7 @@ interface Props {
 
 type MicState = 'idle' | 'requesting' | 'listening' | 'denied' | 'unsupported'
 
-export default function ChatInput({ onSend, onStop, onVoiceMode, disabled, prefill, onPrefillConsumed }: Props) {
+export default function ChatInput({ onSend, onStop, disabled, prefill, onPrefillConsumed }: Props) {
   const [input, setInput] = useState('')
   const [attachment, setAttachment] = useState<{ name: string; content: string } | null>(null)
   const [micState, setMicState] = useState<MicState>('idle')
@@ -40,7 +40,6 @@ export default function ChatInput({ onSend, onStop, onVoiceMode, disabled, prefi
     return () => { recognitionRef.current?.stop() }
   }, [])
 
-  // Consume prefill (from message edit)
   useEffect(() => {
     if (prefill != null) {
       setInput(prefill)
@@ -82,7 +81,7 @@ export default function ChatInput({ onSend, onStop, onVoiceMode, disabled, prefi
     const binaryExts = ['pdf', 'doc', 'docx', 'xlsx', 'xls', 'pptx', 'ppt']
 
     if (binaryExts.includes(ext)) {
-      const toastId = toast.loading(`Parsing ${file.name}…`)
+      const toastId = toast.loading(`Parsing ${file.name}...`)
       try {
         const form = new FormData()
         form.append('file', file)
@@ -113,7 +112,6 @@ export default function ChatInput({ onSend, onStop, onVoiceMode, disabled, prefi
       return
     }
 
-    // Stop any existing session first
     if (recognitionRef.current) {
       recognitionRef.current.stop()
       recognitionRef.current = null
@@ -137,7 +135,6 @@ export default function ChatInput({ onSend, onStop, onVoiceMode, disabled, prefi
           interim += e.results[i][0].transcript
         }
       }
-      // Show interim live so user knows speech is being captured
       setInterimTranscript(interim)
       if (final) {
         setInput(prev => prev ? prev + ' ' + final : final)
@@ -184,10 +181,8 @@ export default function ChatInput({ onSend, onStop, onVoiceMode, disabled, prefi
   return (
     <div className="chat-input-area">
       <div className="chat-input-card">
-
-        {/* Mic permission / error dialog */}
         {showMicPrompt && (
-          <div className="mb-3 p-4 bg-surface border border-border rounded-2xl shadow-lg">
+          <div className="panel mb-3 space-y-2">
             {micState === 'unsupported' ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -195,7 +190,7 @@ export default function ChatInput({ onSend, onStop, onVoiceMode, disabled, prefi
                   <p className="text-sm font-medium text-text-primary">Voice not available</p>
                 </div>
                 <p className="text-xs text-text-secondary">
-                  Voice input requires <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong>.
+                  Voice input requires Google Chrome or Microsoft Edge.
                 </p>
                 <button onClick={() => setShowMicPrompt(false)} className="text-xs text-accent hover:underline">Dismiss</button>
               </div>
@@ -206,7 +201,7 @@ export default function ChatInput({ onSend, onStop, onVoiceMode, disabled, prefi
                   <p className="text-sm font-medium text-text-primary">Microphone blocked</p>
                 </div>
                 <p className="text-xs text-text-secondary">
-                  Click the 🔒 lock icon in your browser address bar and allow microphone access, then try again.
+                  Open the browser lock icon and allow microphone access, then try again.
                 </p>
                 <button onClick={() => setShowMicPrompt(false)} className="text-xs text-accent hover:underline">Dismiss</button>
               </div>
@@ -214,9 +209,8 @@ export default function ChatInput({ onSend, onStop, onVoiceMode, disabled, prefi
           </div>
         )}
 
-        {/* File attachment preview */}
         {attachment && (
-          <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-surface rounded-xl border border-border/50 text-sm text-text-secondary">
+          <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-surface/60 px-3 py-2 text-sm text-text-secondary">
             <FileText size={14} className="text-accent shrink-0" />
             <span className="truncate flex-1">{attachment.name}</span>
             <button onClick={() => setAttachment(null)} className="text-text-tertiary hover:text-text-primary">
@@ -225,109 +219,101 @@ export default function ChatInput({ onSend, onStop, onVoiceMode, disabled, prefi
           </div>
         )}
 
-        {/* Input container */}
-        <div className="flex flex-col bg-surface rounded-3xl border border-border/60 input-glow overflow-hidden">
-          <div className="flex items-end gap-2 px-3 py-3">
+        <div className="chat-input-row">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-10 h-10 rounded-xl border border-border/60 bg-surface flex items-center justify-center text-text-tertiary transition-colors hover:border-accent hover:text-accent"
+              title="Attach file"
+            >
+              <Plus size={18} />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".txt,.md,.json,.csv,.js,.ts,.jsx,.tsx,.py,.html,.css,.xml,.yaml,.yml,.pdf,.doc,.docx,.xlsx,.xls,.pptx,.ppt"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <button
+              onClick={toggleMic}
+              className={`w-10 h-10 rounded-xl border border-border/60 flex items-center justify-center transition-all ${
+                micState === 'listening'
+                  ? 'border-red-500/50 bg-red-500/10 text-red-400 animate-pulse'
+                  : micState === 'requesting'
+                  ? 'border-amber-400/60 bg-amber-500/10 text-amber-400'
+                  : 'border-border/50 bg-surface text-text-tertiary hover:border-accent hover:text-accent'
+              }`}
+              title={
+                micState === 'listening' ? 'Stop listening' :
+                micState === 'requesting' ? 'Requesting mic...' :
+                'Voice input'
+              }
+            >
+              {micState === 'listening' ? <MicOff size={18} /> : <Mic size={18} />}
+            </button>
+          </div>
 
-            {/* Left: Attach + Mic */}
-            <div className="flex items-center gap-1.5 shrink-0 mb-0.5">
-              {/* Attach */}
+          <div className="flex-1 relative">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={micState === 'listening' ? 'Listening... speak now' : 'Ask Pyxis anything...'}
+              rows={1}
+              className="w-full max-h-[200px] overflow-y-auto bg-transparent text-text-primary text-base placeholder:text-text-muted outline-none resize-none leading-relaxed"
+              disabled={disabled}
+            />
+            {interimTranscript && (
+              <div className="absolute bottom-full left-0 mb-2 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-sm text-indigo-200 shadow-lg">
+                Listening: {interimTranscript}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isStreaming ? (
               <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-8 h-8 rounded-full border border-border flex items-center justify-center text-text-tertiary hover:text-text-secondary hover:border-border-light transition-colors"
-                title="Attach file"
+                onClick={onStop}
+                className="w-12 h-12 rounded-xl border-2 border-text-primary flex items-center justify-center text-text-primary transition hover:bg-white/10"
+                title="Stop generating"
               >
-                <Plus size={18} />
+                <Square size={14} fill="currentColor" />
               </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".txt,.md,.json,.csv,.js,.ts,.jsx,.tsx,.py,.html,.css,.xml,.yaml,.yml,.pdf,.doc,.docx,.xlsx,.xls,.pptx,.ppt"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-
-              {/* Mic — left side */}
+            ) : hasContent ? (
               <button
-                onClick={toggleMic}
-                title={
-                  micState === 'listening' ? 'Stop listening' :
-                  micState === 'requesting' ? 'Requesting mic...' :
-                  'Voice input'
-                }
-                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                  micState === 'listening'
-                    ? 'text-red-400 bg-red-500/15 border border-red-500/30 animate-pulse'
-                    : micState === 'requesting'
-                    ? 'text-amber-400 bg-amber-500/10'
-                    : 'text-text-tertiary hover:text-text-secondary'
-                }`}
-              >
-                {micState === 'listening' ? <MicOff size={17} /> : <Mic size={17} />}
-              </button>
-            </div>
-
-            {/* Textarea */}
-            <div className="flex-1 relative py-1">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={micState === 'listening' ? 'Listening… speak now' : 'Ask anything'}
-                rows={1}
-                className="w-full bg-transparent text-text-primary text-[15px] placeholder:text-text-tertiary outline-none resize-none max-h-[200px] overflow-y-hidden leading-relaxed"
+                onClick={handleSubmit}
                 disabled={disabled}
-              />
-              {/* Live interim speech overlay */}
-              {interimTranscript && (
-                <div className="absolute bottom-full left-0 mb-1 px-2 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-indigo-300/80 text-sm italic pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
-                  🎙 {interimTranscript}
-                </div>
-              )}
-            </div>
-
-            {/* Right: Send / Stop / AudioLines */}
-            <div className="flex items-center shrink-0 mb-0.5">
-              {isStreaming ? (
-                <button
-                  onClick={onStop}
-                  className="w-8 h-8 rounded-full border-2 border-text-primary flex items-center justify-center text-text-primary hover:bg-surface-hover transition-colors"
-                  title="Stop generating"
-                >
-                  <Square size={12} fill="currentColor" />
-                </button>
-              ) : hasContent ? (
-                <button
-                  onClick={handleSubmit}
-                  disabled={disabled}
-                  className="w-8 h-8 rounded-full bg-text-primary flex items-center justify-center text-bg hover:opacity-90 transition-opacity disabled:opacity-25"
-                  title="Send"
-                >
-                  <ArrowUp size={16} strokeWidth={2.5} />
-                </button>
-              ) : (
-                <button
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-text-tertiary hover:text-text-secondary transition-colors"
-                  title="Audio"
-                  onClick={() => router.push('/voice')}
-                >
-                  <AudioLines size={17} />
-                </button>
-              )}
-            </div>
+                className="w-12 h-12 rounded-xl bg-accent text-white flex items-center justify-center transition hover:bg-accent-strong disabled:opacity-50 disabled:hover:bg-accent"
+                title="Send"
+              >
+                <ArrowUp size={18} />
+              </button>
+            ) : (
+              <button
+                className="w-12 h-12 rounded-xl border border-border/60 text-text-tertiary flex items-center justify-center transition hover:border-accent hover:text-accent"
+                title="Audio"
+                onClick={() => router.push('/voice')}
+              >
+                <AudioLines size={18} />
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Mic active hint */}
-        {micState === 'listening' && (
-          <p className="text-center text-xs text-red-400/80 mt-1.5 animate-pulse">
-            🎙 Listening — speak clearly, then click mic to stop
+        <div className="input-meta text-xs text-text-muted">
+          <span>Enter to send, Shift+Enter for new line</span>
+          {attachment && <span>Attachment will be included</span>}
+        </div>
+
+        {micState === 'listening' ? (
+          <p className="text-center text-xs text-red-400/80 animate-pulse">
+            Listening... tap the mic to stop.
           </p>
-        )}
-        {micState !== 'listening' && (
-          <p className="text-center text-xs text-text-tertiary mt-2">
-            Pyxis can make mistakes. Check important info.
+        ) : (
+          <p className="text-center text-xs text-text-muted">
+            Pyxis may be inaccurate. Verify critical outputs before acting.
           </p>
         )}
       </div>

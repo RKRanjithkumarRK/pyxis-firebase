@@ -8,18 +8,8 @@ import ProjectsList from './ProjectsList'
 import SidebarHeader from './SidebarHeader'
 import UserMenu from './UserMenu'
 
-'use client'
-
-import SettingsModal from '@/components/settings/SettingsModal'
-import { useSidebar } from '@/contexts/SidebarContext'
-import ChatList from './ChatList'
-import NavLinks from './NavLinks'
-import ProjectsList from './ProjectsList'
-import SidebarHeader from './SidebarHeader'
-import UserMenu from './UserMenu'
-
 export default function Sidebar() {
-  const { isOpen, toggle, setOpen, settingsOpen, setSettingsOpen } = useSidebar()
+  const { isOpen, setOpen, settingsOpen, setSettingsOpen } = useSidebar()
 
   return (
     <>

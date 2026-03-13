@@ -41,6 +41,51 @@ html.light {
   --shadow-elevated: 0 40px 90px rgba(23, 34, 59, 0.25);
 }
 
+/* Light-mode chat overrides */
+html.light .chat-board {
+  background: #FFFFFF;
+  border-color: var(--border);
+}
+
+html.light .chat-header {
+  background: #FFFFFF;
+}
+
+html.light .message-bubble {
+  background: #F4F6FB;
+  border-color: var(--border);
+}
+
+html.light .message-bubble.assistant {
+  background: #F4F6FB;
+  color: var(--text-primary);
+}
+
+html.light .message-bubble.user {
+  background: #5B8CFF;
+  border-color: #5B8CFF;
+  color: #ffffff;
+}
+
+html.light .message-bubble.user .text-text-primary {
+  color: #ffffff;
+}
+
+html.light .chat-input-area {
+  background: rgba(245, 247, 251, 0.95);
+}
+
+html.light .chat-input-card {
+  background: #FFFFFF;
+}
+
+html.light body::before {
+  background: radial-gradient(circle at 15% 10%, rgba(91, 140, 255, 0.16), transparent 28%),
+    radial-gradient(circle at 85% 0%, rgba(45, 212, 191, 0.14), transparent 30%),
+    radial-gradient(circle at 50% 100%, rgba(226, 232, 245, 0.9), transparent 60%);
+  opacity: 1;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -72,7 +117,7 @@ body::before {
   opacity: 0.45;
 }
 
-__next,
+#__next,
 body > * {
   position: relative;
   z-index: 1;
@@ -279,10 +324,12 @@ textarea::placeholder {
 
 .chat-shell {
   width: 100%;
+  flex: 1;
   min-height: 0;
   display: flex;
   justify-content: center;
   padding-top: 16px;
+  padding-bottom: 16px;
 }
 
 .chat-board {
@@ -294,7 +341,8 @@ textarea::placeholder {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-height: 80vh;
+  flex: 1;
+  min-height: 0;
 }
 
 .chat-header {
@@ -310,8 +358,10 @@ textarea::placeholder {
 .chat-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 28px 32px 16px;
+  display: flex;
+  flex-direction: column;
 }
 
 .chat-messages {
@@ -390,7 +440,7 @@ textarea::placeholder {
   bottom: 0;
   background: rgba(15, 17, 21, 0.9);
   border-top: 1px solid var(--border);
-  padding: 16px 30px;
+  padding: 16px 30px calc(16px + var(--safe-bottom));
   backdrop-filter: blur(12px);
 }
 
@@ -464,16 +514,11 @@ textarea::placeholder {
   }
 
   .chat-input-area {
-    padding: 12px 18px;
+    padding: 12px 18px calc(12px + var(--safe-bottom));
   }
 }
 
 @media (max-width: 768px) {
-  html,
-  body {
-    overflow: auto;
-  }
-
   .chat-board {
     border-radius: 20px;
     margin: 0 4px;

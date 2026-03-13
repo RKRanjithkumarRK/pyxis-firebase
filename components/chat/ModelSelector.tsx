@@ -164,7 +164,7 @@ export default function ModelSelector() {
                       <span className={`text-[10px] font-semibold ${speed.color}`}>{speed.label}</span>
                     )}
                   </div>
-                  <div className="text-xs text-text-tertiary mt-0.5 truncate">{m.provider} · {m.description}</div>
+                  <div className="text-xs text-text-tertiary mt-0.5 truncate">{m.provider} - {m.description}</div>
                 </div>
                 {isSelected && <Check size={15} className="text-accent shrink-0" />}
               </button>

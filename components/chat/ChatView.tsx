@@ -319,7 +319,7 @@ export default function ChatView({ conversationId }: Props) {
               <ModelSelector />
             </div>
             <div className="chip text-[11px] text-text-muted">
-              Active lane · {model}
+              Active lane - {model}
             </div>
           </div>
 

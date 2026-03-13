@@ -54,14 +54,14 @@ async function runJavaScript(code: string): Promise<string> {
       try{
         (new Function('console','Math','Date','JSON','Array','Object','String','Number','Boolean','parseInt','parseFloat','isNaN','isFinite',${JSON.stringify(code)}))(_con,Math,Date,JSON,Array,Object,String,Number,Boolean,parseInt,parseFloat,isNaN,isFinite);
         postMessage({ok:true,out:_logs.join('\\n')||'(no output)'});
-      }catch(e){postMessage({ok:false,out:'❌ '+e.message});}
+      }catch(e){postMessage({ok:false,out:'Error: '+e.message});}
     `
     const blob = new Blob([workerSrc], { type: 'application/javascript' })
     const url = URL.createObjectURL(blob)
     const worker = new Worker(url)
-    const timer = setTimeout(() => { worker.terminate(); URL.revokeObjectURL(url); resolve('❌ Timed out (5s)') }, 5000)
+    const timer = setTimeout(() => { worker.terminate(); URL.revokeObjectURL(url); resolve('Error: Timed out (5s)') }, 5000)
     worker.onmessage = (e) => { clearTimeout(timer); worker.terminate(); URL.revokeObjectURL(url); resolve(e.data.out) }
-    worker.onerror = (e) => { clearTimeout(timer); worker.terminate(); URL.revokeObjectURL(url); resolve('❌ ' + e.message) }
+    worker.onerror = (e) => { clearTimeout(timer); worker.terminate(); URL.revokeObjectURL(url); resolve('Error: ' + e.message) }
   })
 }
 
@@ -93,7 +93,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
   const handleRun = async () => {
     const lang = language?.toLowerCase() || ''
     if (!RUNNABLE_LANGS.has(lang)) {
-      setOutput(`⚠ "${language || 'unknown'}" can't be executed here.\nSupported: Python, JavaScript, TypeScript, Bash`)
+      setOutput(`Warning: "${language || 'unknown'}" can't be executed here.\nSupported: Python, JavaScript, TypeScript, Bash`)
       return
     }
     setIsRunning(true)
@@ -111,11 +111,11 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
           body: JSON.stringify({ language: lang, code }),
         })
         const data = await res.json()
-        result = data.error ? `❌ ${data.error}` : (data.output || '(no output)')
+        result = data.error ? `Error: ${data.error}` : (data.output || '(no output)')
       }
       setOutput(result)
     } catch {
-      setOutput('❌ Failed to run code')
+      setOutput('Error: Failed to run code')
     } finally {
       setIsRunning(false)
     }
@@ -173,7 +173,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
             }}
           >
             {isRunning ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
-            {isRunning ? 'Running…' : 'Run'}
+            {isRunning ? 'Running...' : 'Run'}
           </button>
         </div>
       </div>
@@ -213,7 +213,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
           }}
         >
           <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            {isRunning ? '⏳ running…' : 'output'}
+            {isRunning ? 'Running...' : 'Output'}
           </div>
           {isRunning ? '' : output}
         </div>
@@ -341,3 +341,4 @@ export default function Message({ message, onRegenerate, isLast, index, onEdit }
     </div>
   )
 }
+

@@ -26,22 +26,41 @@ export default function MessageList({ onRegenerate, onEdit }: Props) {
   const { messages, isStreaming } = useChat()
   const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const prevMessageCountRef = useRef(0)
+  const isInitialLoadRef = useRef(true)
 
   useEffect(() => {
     if (!containerRef.current) return
+    const isNewMessage = messages.length > prevMessageCountRef.current
+    prevMessageCountRef.current = messages.length
+
     if (isStreaming) {
+      // During streaming: pin to bottom instantly
       containerRef.current.scrollTop = containerRef.current.scrollHeight
-    } else {
+    } else if (isInitialLoadRef.current && messages.length > 0) {
+      // On first load of a conversation: jump to bottom instantly (no animation)
+      containerRef.current.scrollTop = containerRef.current.scrollHeight
+      isInitialLoadRef.current = false
+    } else if (isNewMessage) {
+      // New message appended: smooth scroll to bottom
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages, isStreaming])
+
+  // Reset initial-load flag when messages are cleared (new conversation)
+  useEffect(() => {
+    if (messages.length === 0) {
+      isInitialLoadRef.current = true
+      prevMessageCountRef.current = 0
+    }
+  }, [messages.length])
 
   const lastAssistantId = [...messages].reverse().find(m => m.role === 'assistant')?.id ?? null
 
   return (
     <div
       ref={containerRef}
-      className="h-full overflow-y-auto pr-1 custom-scrollbar scrollable"
+      className="flex-1 overflow-y-auto pr-1 custom-scrollbar scrollable"
     >
       <div className="chat-messages">
         {messages.map((msg, index) => (
