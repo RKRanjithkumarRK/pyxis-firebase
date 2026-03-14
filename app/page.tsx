@@ -127,7 +127,7 @@ export default function LandingPage() {
               <Link href="/login" className="rounded-full border border-border px-4 py-2 text-sm text-text-secondary transition-colors hover:border-border-light hover:text-text-primary">
                 Sign in
               </Link>
-              <Link href="/login" className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition-transform hover:scale-[1.02]">
+              <Link href="/login" className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white transition-transform hover:scale-[1.02]">
                 Enter Pyxis
               </Link>
             </div>
@@ -155,7 +155,7 @@ export default function LandingPage() {
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
                   href="/login"
-                  className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition-transform hover:scale-[1.02]"
+                  className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white transition-transform hover:scale-[1.02] hover:bg-accent-hover"
                 >
                   Launch Control Tower
                   <ArrowRight size={16} />
@@ -201,7 +201,7 @@ export default function LandingPage() {
                     </div>
                     <div className="mt-4 space-y-3">
                       {['Research council', 'Revenue copilot', 'Security sentinel'].map((agent, index) => (
-                        <div key={agent} className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
+                        <div key={agent} className="flex items-center justify-between rounded-2xl bg-surface-hover px-4 py-3">
                           <div>
                             <p className="text-sm font-semibold text-text-primary">{agent}</p>
                             <p className="text-xs text-text-tertiary">Runbook {index + 1} online</p>
@@ -228,7 +228,7 @@ export default function LandingPage() {
                             <p className="text-sm font-semibold text-text-primary">{model}</p>
                             <p className="text-xs text-text-tertiary">{latency}</p>
                           </div>
-                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-active">
                             <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-indigo-400 to-emerald-300" style={{ width: latency === '244ms' ? '82%' : latency === '318ms' ? '68%' : '54%' }} />
                           </div>
                         </div>
@@ -237,7 +237,7 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                <div className="mt-5 rounded-[28px] border border-border/80 bg-slate-950/35 p-5">
+                <div className="mt-5 rounded-[28px] border border-border/80 bg-surface-muted p-5">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-semibold text-text-primary">Enterprise command stream</p>
@@ -247,7 +247,7 @@ export default function LandingPage() {
                   </div>
                   <div className="mt-4 space-y-3">
                     {SIGNALS.map((signal) => (
-                      <div key={signal} className="flex items-start gap-3 rounded-2xl bg-white/5 px-4 py-3">
+                      <div key={signal} className="flex items-start gap-3 rounded-2xl bg-surface-hover px-4 py-3">
                         <span className="mt-1 h-2 w-2 rounded-full bg-cyan-300" />
                         <p className="text-sm leading-6 text-text-secondary">{signal}</p>
                       </div>
@@ -259,7 +259,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="platform" className="border-y border-border/70 bg-black/10">
+        <section id="platform" className="border-y border-border/70 bg-surface-muted/40">
           <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8">
             <div className="mb-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
@@ -295,7 +295,7 @@ export default function LandingPage() {
             <div className="grid gap-5 lg:grid-cols-3">
               {PLATFORM_PILLARS.map((pillar) => (
                 <div key={pillar.title} className="glass-panel rounded-[28px] p-6">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/8">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-active">
                     <pillar.icon className="text-cyan-300" size={22} />
                   </div>
                   <h3 className="mt-5 font-display text-2xl text-text-primary">{pillar.title}</h3>
@@ -317,7 +317,7 @@ export default function LandingPage() {
                     ['AI-native UX', 'Command-first navigation, adaptive workspaces, and high-density operational dashboards.'],
                     ['Expansion path', 'Marketplace, plugins, APIs, analytics, and multi-tenant control foundations.'],
                   ].map(([title, description]) => (
-                    <div key={title} className="rounded-[24px] border border-border/80 bg-white/5 p-5">
+                    <div key={title} className="rounded-[24px] border border-border/80 bg-surface-hover p-5">
                       <p className="font-semibold text-text-primary">{title}</p>
                       <p className="mt-2 text-sm leading-6 text-text-secondary">{description}</p>
                     </div>
@@ -336,7 +336,7 @@ export default function LandingPage() {
                 <h2 className="mt-3 font-display text-4xl text-text-primary">Your existing Pyxis stack now has a stronger flagship surface and a bigger product story.</h2>
               </div>
               <div className="flex flex-wrap gap-3">
-                <Link href="/login" className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950">
+                <Link href="/login" className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white hover:bg-accent-hover">
                   Enter the workspace
                   <ArrowRight size={16} />
                 </Link>

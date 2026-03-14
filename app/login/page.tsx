@@ -108,7 +108,7 @@ export default function LoginPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-[100svh] min-h-[100dvh] flex items-center justify-center bg-bg px-4 py-10">
+      <div className="min-h-screen min-h-[100dvh] flex items-center justify-center bg-bg px-4 py-10">
         <div className="panel flex w-full max-w-md items-center gap-4 rounded-[28px] px-6 py-5">
           <PyxisMark size={44} />
           <div>
@@ -121,8 +121,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-[100svh] min-h-[100dvh] overflow-y-auto bg-bg text-text-primary">
-      <div className="mx-auto flex min-h-[100svh] min-h-[100dvh] w-full max-w-[1600px] items-center px-4 py-6 sm:px-6 sm:py-8 lg:px-10 xl:px-12">
+    <div className="min-h-screen min-h-[100dvh] overflow-y-auto bg-bg text-text-primary">
+      <div className="mx-auto flex min-h-screen min-h-[100dvh] w-full max-w-[1600px] items-center px-4 py-6 sm:px-6 sm:py-8 lg:px-10 xl:px-12">
         <div className="grid w-full items-center gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(440px,520px)] 2xl:gap-10">
           <section className="relative overflow-hidden rounded-[32px] panel px-6 py-7 sm:px-8 sm:py-9 xl:px-10 xl:py-10">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(97,211,255,0.12),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(99,102,241,0.12),transparent_32%)]" />
@@ -156,7 +156,7 @@ export default function LoginPage() {
                   <p className="text-xs uppercase tracking-[0.28em] text-text-tertiary">What feels stronger now</p>
                   <div className="mt-4 space-y-3">
                     {VALUE_PROPS.map((item) => (
-                      <div key={item} className="flex gap-3 rounded-2xl bg-white/5 px-4 py-4">
+                      <div key={item} className="flex gap-3 rounded-2xl bg-surface-hover px-4 py-4">
                         <CheckCircle2 className="mt-0.5 text-emerald-300" size={18} />
                         <p className="text-sm leading-7 text-text-secondary">{item}</p>
                       </div>
@@ -278,7 +278,7 @@ export default function LoginPage() {
                   <button
                     type="submit"
                     disabled={authUnavailable || loading}
-                    className="w-full rounded-2xl bg-white px-4 py-3.5 text-base font-semibold text-slate-950 transition-transform hover:scale-[1.01] disabled:opacity-50"
+                    className="w-full rounded-2xl bg-accent px-4 py-3.5 text-base font-semibold text-white transition-transform hover:scale-[1.01] hover:bg-accent-hover disabled:opacity-50"
                   >
                     {loading ? 'Loading...' : isSignUp ? 'Create account' : 'Continue'}
                   </button>

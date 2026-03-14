@@ -163,7 +163,7 @@ export default function VoiceMode({ onClose, onSend }: Props) {
 
           <button
             onClick={handleEnd}
-            className="px-5 py-3 rounded-full bg-blue-500 hover:bg-blue-600 text-white font-medium transition-colors shrink-0"
+            className="px-5 py-3 rounded-full bg-accent hover:bg-accent-hover text-white font-medium transition-colors shrink-0"
           >
             End
           </button>

@@ -2,10 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "pyxis-firebase",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "pyxis-firebase", "run", "dev"],
-      "port": 3000
+      "name": "pyxis-dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:/Users/ranji/OneDrive/Desktop/pyxis-firebase/node_modules/next/dist/bin/next", "dev"],
+      "port": 3000,
+      "autoPort": true
     }
   ]
 }
