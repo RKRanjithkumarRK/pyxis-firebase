@@ -207,7 +207,7 @@ export default function LoginPage() {
 
                 <div className="mt-6 space-y-3">
                   {authUnavailable && (
-                    <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                    <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-100">
                       Authentication is unavailable in this environment until Firebase public keys are configured.
                     </div>
                   )}
