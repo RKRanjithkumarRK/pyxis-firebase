@@ -776,17 +776,15 @@ export default function AgentsPage() {
 
         {/* Agent Header */}
         <div
-          className="flex items-center justify-between px-5 py-3.5 shrink-0 border-b"
+          className="flex items-center justify-between px-5 py-3.5 shrink-0 border-b border-border bg-surface"
           style={{
-            background: 'rgba(255,255,255,0.02)',
-            borderColor: 'rgba(255,255,255,0.06)',
             backdropFilter: 'blur(12px)',
           }}
         >
           <div className="flex items-center gap-3.5">
             <button
               onClick={() => setMobileListOpen(true)}
-              className="lg:hidden flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 text-white/70 hover:text-white hover:border-white/20"
+              className="lg:hidden flex h-9 w-9 items-center justify-center rounded-xl border border-border text-secondary hover:text-primary"
               title="Open agents list"
             >
               <PanelLeft size={16} />
@@ -800,7 +798,7 @@ export default function AgentsPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm font-bold text-white/90">{selectedAgent.name}</h1>
+                <h1 className="text-sm font-bold text-primary">{selectedAgent.name}</h1>
                 <span
                   className="text-[9px] px-2 py-0.5 rounded-full font-semibold"
                   style={{ background: selectedAgent.accentSoft, color: selectedAgent.accent }}
@@ -808,18 +806,13 @@ export default function AgentsPage() {
                   ● Active
                 </span>
               </div>
-              <p className="text-xs text-white/40 mt-0.5">{selectedAgent.desc}</p>
+              <p className="text-xs text-secondary mt-0.5">{selectedAgent.desc}</p>
               {/* Capability tags */}
               <div className="flex items-center gap-1.5 mt-1.5">
                 {selectedAgent.tags.map(tag => (
                   <span
                     key={tag}
-                    className="text-[9px] px-2 py-0.5 rounded-lg font-medium"
-                    style={{
-                      background: 'rgba(255,255,255,0.06)',
-                      color: 'rgba(255,255,255,0.45)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                    }}
+                    className="text-[9px] px-2 py-0.5 rounded-lg font-medium border border-border text-secondary bg-surface-hover"
                   >
                     {tag}
                   </span>
@@ -833,8 +826,7 @@ export default function AgentsPage() {
             {messages.length > 0 && (
               <button
                 onClick={clearChat}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-white/40 hover:text-white/70 transition-all"
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-muted hover:text-secondary transition-all bg-surface border border-border"
                 title="New Conversation"
               >
                 <Plus size={11} />
@@ -844,8 +836,7 @@ export default function AgentsPage() {
             {messages.length > 0 && (
               <button
                 onClick={clearChat}
-                className="p-2 rounded-xl text-white/30 hover:text-red-400 transition-colors"
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+                className="p-2 rounded-xl text-muted hover:text-red-400 transition-colors bg-surface border border-border"
                 title="Clear conversation"
               >
                 <Trash2 size={13} />
@@ -868,8 +859,8 @@ export default function AgentsPage() {
                 >
                   <span className="text-4xl leading-none">{selectedAgent.emoji}</span>
                 </div>
-                <h2 className="text-xl font-bold text-white/90 mb-2">{selectedAgent.name}</h2>
-                <p className="text-sm text-white/40 max-w-md mx-auto mb-2">{selectedAgent.desc}</p>
+                <h2 className="text-xl font-bold text-primary mb-2">{selectedAgent.name}</h2>
+                <p className="text-sm text-secondary max-w-md mx-auto mb-2">{selectedAgent.desc}</p>
                 {/* Tags */}
                 <div className="flex items-center justify-center gap-2 mb-8">
                   {selectedAgent.tags.map(tag => (
@@ -885,7 +876,7 @@ export default function AgentsPage() {
 
                 {/* Starter prompts */}
                 <div className="max-w-2xl mx-auto">
-                  <p className="text-[11px] font-semibold text-white/25 uppercase tracking-widest mb-4">
+                  <p className="text-[11px] font-semibold text-muted uppercase tracking-widest mb-4">
                     Suggested prompts
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -893,11 +884,7 @@ export default function AgentsPage() {
                       <button
                         key={i}
                         onClick={() => send(s)}
-                        className="px-4 py-3.5 rounded-2xl text-left text-xs text-white/60 hover:text-white/90 transition-all duration-200 group"
-                        style={{
-                          background: 'rgba(255,255,255,0.04)',
-                          border: '1px solid rgba(255,255,255,0.07)',
-                        }}
+                        className="px-4 py-3.5 rounded-2xl text-left text-xs text-secondary hover:text-primary transition-all duration-200 group bg-surface-hover border border-border"
                         onMouseEnter={e => {
                           ;(e.currentTarget as HTMLElement).style.borderColor =
                             selectedAgent.accent + '50'
@@ -905,10 +892,8 @@ export default function AgentsPage() {
                             selectedAgent.accentSoft
                         }}
                         onMouseLeave={e => {
-                          ;(e.currentTarget as HTMLElement).style.borderColor =
-                            'rgba(255,255,255,0.07)'
-                          ;(e.currentTarget as HTMLElement).style.background =
-                            'rgba(255,255,255,0.04)'
+                          ;(e.currentTarget as HTMLElement).style.borderColor = ''
+                          ;(e.currentTarget as HTMLElement).style.background = ''
                         }}
                       >
                         <span className="leading-relaxed">{s}</span>
@@ -946,7 +931,7 @@ export default function AgentsPage() {
                     className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                       msg.role === 'user'
                         ? 'rounded-br-md text-white'
-                        : 'text-white/85'
+                        : 'text-primary'
                     }`}
                     style={
                       msg.role === 'user'
@@ -955,8 +940,8 @@ export default function AgentsPage() {
                             boxShadow: `0 2px 16px ${selectedAgent.accent}30`,
                           }
                         : {
-                            background: 'rgba(255,255,255,0.05)',
-                            border: '1px solid rgba(255,255,255,0.07)',
+                            background: 'var(--surface)',
+                            border: '1px solid var(--border)',
                           }
                     }
                   >
@@ -969,7 +954,7 @@ export default function AgentsPage() {
                         </ReactMarkdown>
                       </div>
                     ) : streaming && i === messages.length - 1 ? (
-                      <div className="flex items-center gap-2 text-xs text-white/40">
+                      <div className="flex items-center gap-2 text-xs text-muted">
                         <span
                           className="text-[10px] font-medium px-2 py-0.5 rounded-md"
                           style={{ background: selectedAgent.accentSoft, color: selectedAgent.accent }}
@@ -988,8 +973,7 @@ export default function AgentsPage() {
                     >
                       <button
                         onClick={() => copyMessage(i, msg.content)}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-white/35 hover:text-white/70 transition-colors"
-                        style={{ background: 'rgba(255,255,255,0.05)' }}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-muted hover:text-secondary transition-colors bg-surface-hover"
                       >
                         {copiedMsgIdx === i ? (
                           <Check size={10} className="text-emerald-400" />
@@ -1000,9 +984,9 @@ export default function AgentsPage() {
                       </button>
                       <button
                         onClick={() => toggleLike(i, true)}
-                        className="p-1.5 rounded-lg text-white/35 hover:text-emerald-400 transition-colors"
+                        className="p-1.5 rounded-lg text-muted hover:text-emerald-400 transition-colors"
                         style={{
-                          background: msg.liked === true ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)',
+                          background: msg.liked === true ? 'rgba(16,185,129,0.15)' : 'var(--surface-hover)',
                           color: msg.liked === true ? '#10b981' : undefined,
                         }}
                       >
@@ -1010,9 +994,9 @@ export default function AgentsPage() {
                       </button>
                       <button
                         onClick={() => toggleLike(i, false)}
-                        className="p-1.5 rounded-lg text-white/35 hover:text-red-400 transition-colors"
+                        className="p-1.5 rounded-lg text-muted hover:text-red-400 transition-colors"
                         style={{
-                          background: msg.liked === false ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)',
+                          background: msg.liked === false ? 'rgba(239,68,68,0.15)' : 'var(--surface-hover)',
                           color: msg.liked === false ? '#ef4444' : undefined,
                         }}
                       >
@@ -1023,8 +1007,7 @@ export default function AgentsPage() {
                           const prevUser = messages[i - 1]
                           if (prevUser?.role === 'user') send(prevUser.content)
                         }}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-white/35 hover:text-white/70 transition-colors"
-                        style={{ background: 'rgba(255,255,255,0.05)' }}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-muted hover:text-secondary transition-colors bg-surface-hover"
                       >
                         <RefreshCw size={10} />
                         Retry
@@ -1036,11 +1019,7 @@ export default function AgentsPage() {
                 {/* User Avatar */}
                 {msg.role === 'user' && (
                   <div
-                    className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold text-white/90"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06))',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                    }}
+                    className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold text-primary bg-surface-active border border-border"
                   >
                     U
                   </div>
@@ -1054,19 +1033,15 @@ export default function AgentsPage() {
 
         {/* Input Area */}
         <div
-          className="px-4 sm:px-6 py-4 shrink-0 border-t"
-          style={{
-            borderColor: 'rgba(255,255,255,0.06)',
-            background: 'rgba(255,255,255,0.01)',
-            backdropFilter: 'blur(12px)',
-          }}
+          className="px-4 sm:px-6 py-4 shrink-0 border-t border-border bg-bg"
+          style={{ backdropFilter: 'blur(12px)' }}
         >
           <div className="max-w-3xl mx-auto">
             <div
               className="rounded-2xl overflow-hidden transition-all duration-200"
               style={{
-                background: 'rgba(255,255,255,0.05)',
-                border: `1px solid rgba(255,255,255,0.09)`,
+                background: 'var(--surface)',
+                border: `1px solid var(--border)`,
                 boxShadow: '0 0 0 0 transparent',
               }}
               onFocusCapture={e => {
@@ -1074,7 +1049,7 @@ export default function AgentsPage() {
                 ;(e.currentTarget as HTMLElement).style.boxShadow = `0 0 0 3px ${selectedAgent.accent}18`
               }}
               onBlurCapture={e => {
-                ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.09)'
+                ;(e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'
                 ;(e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 0 transparent'
               }}
             >
@@ -1092,7 +1067,7 @@ export default function AgentsPage() {
                   }}
                   placeholder={`Message ${selectedAgent.name}…`}
                   rows={1}
-                  className="w-full bg-transparent text-sm text-white/85 placeholder:text-white/25 outline-none resize-none leading-relaxed"
+                  className="w-full bg-transparent text-sm text-primary placeholder:text-muted outline-none resize-none leading-relaxed"
                   style={{ maxHeight: 160 }}
                 />
               </div>
@@ -1100,7 +1075,7 @@ export default function AgentsPage() {
               {/* Toolbar */}
               <div
                 className="flex items-center justify-between px-3 pb-3 pt-1"
-                style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+                style={{ borderTop: '1px solid var(--border)' }}
               >
                 {/* Left tools */}
                 <div className="flex items-center gap-1">
@@ -1131,11 +1106,11 @@ export default function AgentsPage() {
                   <button
                     onClick={() => send()}
                     disabled={streaming || !input.trim()}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-white transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${streaming || !input.trim() ? 'text-muted' : 'text-white'}`}
                     style={{
                       background:
                         streaming || !input.trim()
-                          ? 'rgba(255,255,255,0.08)'
+                          ? 'var(--surface-active)'
                           : `linear-gradient(135deg, ${selectedAgent.accent}, ${selectedAgent.accent}cc)`,
                       boxShadow:
                         !streaming && input.trim()

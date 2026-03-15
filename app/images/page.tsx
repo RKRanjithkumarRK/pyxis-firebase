@@ -249,6 +249,27 @@ function ImageCard({ img, onExpand, onDownload, onRemix }: ImageCardProps) {
   )
 }
 
+// ─── Lightbox Image (with proxy fallback) ────────────────────────────────────
+
+function LightboxImage({ url, prompt }: { url: string; prompt: string }) {
+  const [src, setSrc] = useState(url)
+  const [tried, setTried] = useState(false)
+  useEffect(() => { setSrc(url); setTried(false) }, [url])
+  return (
+    <img
+      src={src}
+      alt={prompt}
+      onError={() => {
+        if (!tried && !url.startsWith('data:') && !url.startsWith('/api/images/proxy')) {
+          setTried(true)
+          setSrc(`/api/images/proxy?url=${encodeURIComponent(url)}`)
+        }
+      }}
+      className="w-full max-h-[70vh] object-contain bg-surface-muted"
+    />
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ImagesPage() {
@@ -447,9 +468,20 @@ export default function ImagesPage() {
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
         blob = new Blob([bytes], { type: mime })
       } else {
-        const res = await fetch('/api/images/proxy?url=' + encodeURIComponent(img.url))
-        if (!res.ok) throw new Error('Download failed')
-        blob = await res.blob()
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 20000)
+        try {
+          const res = await fetch('/api/images/proxy?url=' + encodeURIComponent(img.url), { signal: controller.signal })
+          clearTimeout(timer)
+          if (!res.ok) throw new Error('proxy failed')
+          blob = await res.blob()
+        } catch {
+          clearTimeout(timer)
+          // Fallback: open image in new tab so user can save it manually
+          window.open(img.url, '_blank')
+          toast.success('Opened in new tab — right-click to save')
+          return
+        }
       }
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -734,11 +766,7 @@ export default function ImagesPage() {
             </button>
 
             {/* Image */}
-            <img
-              src={lightbox.url}
-              alt={lightbox.prompt}
-              className="w-full max-h-[70vh] object-contain bg-surface-muted"
-            />
+            <LightboxImage url={lightbox.url} prompt={lightbox.prompt} />
 
             {/* Info panel */}
             <div className="p-5 border-t border-border">
