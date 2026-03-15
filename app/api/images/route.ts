@@ -65,6 +65,6 @@ export async function POST(req: NextRequest) {
   // The browser <img> tag loads the URL directly from the user's IP, which works fine.
   const pollinationsModel = resolvePollinationsModel(model)
   const encoded = encodeURIComponent(prompt)
-  const url = `https://image.pollinations.ai/prompt/${encoded}?width=${safeSize.width}&height=${safeSize.height}&seed=${seed}&nologo=true&model=${pollinationsModel}&enhance=true`
+  const url = `https://image.pollinations.ai/prompt/${encoded}?width=${safeSize.width}&height=${safeSize.height}&seed=${seed}&nologo=true&model=${pollinationsModel}`
   return NextResponse.json({ url, prompt, source: 'pollinations' })
 }

@@ -135,6 +135,8 @@ function ImageCard({ img, onExpand, onDownload, onRemix }: ImageCardProps) {
   const [retryKey, setRetryKey] = useState(0)
   const [src, setSrc] = useState(img.url)
   const [triedProxy, setTriedProxy] = useState(false)
+  const [autoRetries, setAutoRetries] = useState(0)
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     setSrc(img.url)
@@ -142,21 +144,41 @@ function ImageCard({ img, onExpand, onDownload, onRemix }: ImageCardProps) {
     setErrored(false)
     setRetryKey(0)
     setTriedProxy(false)
+    setAutoRetries(0)
   }, [img.url])
+
+  useEffect(() => () => { if (retryTimer.current) clearTimeout(retryTimer.current) }, [])
 
   const toProxyUrl = (url: string) => `/api/images/proxy?url=${encodeURIComponent(url)}`
 
   const handleRetry = (e: React.MouseEvent) => {
     e.stopPropagation()
+    if (retryTimer.current) clearTimeout(retryTimer.current)
     setErrored(false)
     setLoaded(false)
     setTriedProxy(false)
+    setAutoRetries(0)
     setSrc(img.url)
     setRetryKey(k => k + 1)
   }
 
   const handleError = () => {
-    if (!triedProxy && !img.url.startsWith('data:') && !img.url.startsWith('/api/images/proxy')) {
+    // For Pollinations: skip proxy (Vercel IPs are blocked), auto-retry with new seed
+    if (src.includes('pollinations.ai') && autoRetries < 4) {
+      const nextRetry = autoRetries + 1
+      setAutoRetries(nextRetry)
+      setLoaded(false)
+      setErrored(false)
+      retryTimer.current = setTimeout(() => {
+        const seed = Math.floor(Math.random() * 999999)
+        const newSrc = `https://image.pollinations.ai/prompt/${encodeURIComponent(img.prompt)}?width=${img.width}&height=${img.height}&nologo=true&seed=${seed}&model=flux`
+        setSrc(newSrc)
+        setRetryKey(k => k + 1)
+      }, 3000 * nextRetry)
+      return
+    }
+    // For other URLs (DALL-E etc), try proxy once
+    if (!triedProxy && !img.url.startsWith('data:') && !img.url.startsWith('/api/images/proxy') && !src.includes('pollinations.ai')) {
       setTriedProxy(true)
       setLoaded(false)
       setErrored(false)
@@ -172,7 +194,10 @@ function ImageCard({ img, onExpand, onDownload, onRemix }: ImageCardProps) {
       style={{ transform: 'translateZ(0)' }}
     >
       {!loaded && !errored && (
-        <div className="absolute inset-0 bg-gradient-to-br from-surface-hover to-surface-muted animate-pulse" style={{ minHeight: 200 }} />
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-surface-hover to-surface-muted animate-pulse" style={{ minHeight: 200 }}>
+          <Loader2 className="w-5 h-5 text-muted animate-spin" />
+          <span className="text-muted text-[10px]">{autoRetries > 0 ? `Retrying… (${autoRetries}/4)` : 'Generating…'}</span>
+        </div>
       )}
       {!errored ? (
         <img
@@ -253,15 +278,30 @@ function ImageCard({ img, onExpand, onDownload, onRemix }: ImageCardProps) {
 
 function LightboxImage({ url, prompt }: { url: string; prompt: string }) {
   const [src, setSrc] = useState(url)
-  const [tried, setTried] = useState(false)
-  useEffect(() => { setSrc(url); setTried(false) }, [url])
+  const [retryKey, setRetryKey] = useState(0)
+  const [retries, setRetries] = useState(0)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => { setSrc(url); setRetryKey(0); setRetries(0) }, [url])
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
   return (
     <img
+      key={`lb-${retryKey}`}
       src={src}
       alt={prompt}
       onError={() => {
-        if (!tried && !url.startsWith('data:') && !url.startsWith('/api/images/proxy')) {
-          setTried(true)
+        // For Pollinations: retry with new seed (proxy also fails for these)
+        if (src.includes('pollinations.ai') && retries < 4) {
+          const next = retries + 1
+          setRetries(next)
+          timer.current = setTimeout(() => {
+            const seed = Math.floor(Math.random() * 999999)
+            setSrc(`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&nologo=true&seed=${seed}&model=flux`)
+            setRetryKey(k => k + 1)
+          }, 3000 * next)
+          return
+        }
+        // For DALL-E / other URLs, try proxy once
+        if (!src.startsWith('data:') && !src.startsWith('/api/images/proxy') && !src.includes('pollinations.ai')) {
           setSrc(`/api/images/proxy?url=${encodeURIComponent(url)}`)
         }
       }}
