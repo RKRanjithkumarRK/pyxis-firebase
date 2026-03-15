@@ -120,9 +120,10 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
   const [loaded, setLoaded] = useState(false)
   const [errored, setErrored] = useState(false)
   const [elapsed, setElapsed] = useState(0)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const mountedRef = useRef(true)
+  const retryCountRef = useRef(0)
+  const startTimeRef = useRef(Date.now())
   const isDataUrl = img.url.startsWith('data:') || img.url.startsWith('blob:')
 
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false } }, [])
@@ -133,46 +134,45 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
     setSrc(img.url)
     setLoaded(false)
     setErrored(false)
+    retryCountRef.current = 0
+    startTimeRef.current = Date.now()
     onLoadStateChange?.(img.id, true)
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-      if (elapsedRef.current) clearInterval(elapsedRef.current)
-    }
+    return () => { if (elapsedRef.current) clearInterval(elapsedRef.current) }
   }, [img.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Tick elapsed while loading
+  // Tick elapsed from start time (not reset on retries)
   useEffect(() => {
     if (isDataUrl || loaded || errored) {
       if (elapsedRef.current) clearInterval(elapsedRef.current)
       return
     }
-    setElapsed(0)
-    elapsedRef.current = setInterval(() => setElapsed(s => s + 1), 1000)
+    elapsedRef.current = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000))
+    }, 1000)
     return () => { if (elapsedRef.current) clearInterval(elapsedRef.current) }
-  }, [src, loaded, errored, isDataUrl])
+  }, [img.id, loaded, errored, isDataUrl]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // At 60s auto-retry with a new seed (silent). At 120s show error.
+  // Timers fire ONCE per image (keyed to img.id, not src) — retries don't reset them
   useEffect(() => {
-    if (isDataUrl || loaded || errored) return
-    // 60s: silently swap to a new seed — Pollinations may have been slow on this seed
+    if (isDataUrl) return
+    // 45s: silently swap to a new seed (Pollinations slow for this seed)
     const retryTimer = setTimeout(() => {
       if (mountedRef.current && !loaded) {
-        const newUrl = pollinationsUrl(img.prompt, img.width, img.height)
-        setSrc(newUrl)
+        retryCountRef.current += 1
+        setSrc(pollinationsUrl(img.prompt, img.width, img.height))
       }
-    }, 60000)
-    // 120s: give up and show error
+    }, 45000)
+    // 90s: give up
     const giveUpTimer = setTimeout(() => {
       if (mountedRef.current && !loaded) {
         setErrored(true)
         onLoadStateChange?.(img.id, false)
       }
-    }, 120000)
+    }, 90000)
     return () => { clearTimeout(retryTimer); clearTimeout(giveUpTimer) }
-  }, [src, loaded, errored, isDataUrl]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [img.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLoad = () => {
-    if (timerRef.current) clearTimeout(timerRef.current)
     if (elapsedRef.current) clearInterval(elapsedRef.current)
     setLoaded(true)
     onLoadStateChange?.(img.id, false)
@@ -180,20 +180,16 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
   }
 
   const handleError = () => {
-    // onError fires on HTTP error (not slow). Retry once with new seed before giving up.
-    if (timerRef.current) clearTimeout(timerRef.current)
-    if (elapsedRef.current) clearInterval(elapsedRef.current)
-    if (!mountedRef.current) return
-    // Try a different seed immediately on HTTP error
-    const newUrl = pollinationsUrl(img.prompt, img.width, img.height)
-    setSrc(newUrl)
-    // If new seed also fails within 60s, show error
-    timerRef.current = setTimeout(() => {
-      if (mountedRef.current && !loaded) {
-        setErrored(true)
-        onLoadStateChange?.(img.id, false)
-      }
-    }, 60000)
+    if (!mountedRef.current || loaded) return
+    retryCountRef.current += 1
+    // Allow up to 3 retries on HTTP error, then give up immediately
+    if (retryCountRef.current <= 3) {
+      setSrc(pollinationsUrl(img.prompt, img.width, img.height))
+    } else {
+      if (elapsedRef.current) clearInterval(elapsedRef.current)
+      setErrored(true)
+      onLoadStateChange?.(img.id, false)
+    }
   }
 
   const handleRetry = (e: React.MouseEvent) => {
@@ -224,7 +220,7 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
               {elapsed < 5 ? 'Generating…' : `Generating… ${elapsed}s`}
             </p>
             {elapsed > 15 && (
-              <p className="text-muted text-[10px] mt-1">AI image takes 15–50s</p>
+              <p className="text-muted text-[10px] mt-1">AI image takes 15–90s</p>
             )}
           </div>
         </div>
