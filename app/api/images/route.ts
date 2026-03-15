@@ -5,9 +5,9 @@ import { adminDb } from '@/lib/firebase-admin'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 55
 
-function normalizeSize(width: number, height: number, maxEdge = 1024) {
-  const safeWidth = Number.isFinite(width) && width > 0 ? width : 1024
-  const safeHeight = Number.isFinite(height) && height > 0 ? height : 1024
+function normalizeSize(width: number, height: number, maxEdge = 512) {
+  const safeWidth = Number.isFinite(width) && width > 0 ? width : 512
+  const safeHeight = Number.isFinite(height) && height > 0 ? height : 512
   const maxDim = Math.max(safeWidth, safeHeight)
   if (maxDim <= maxEdge) {
     return { width: Math.round(safeWidth), height: Math.round(safeHeight) }
@@ -21,16 +21,16 @@ function normalizeSize(width: number, height: number, maxEdge = 1024) {
 
 function resolvePollinationsModel(rawModel: unknown) {
   const normalized = typeof rawModel === 'string' ? rawModel.toLowerCase() : ''
-  if (normalized.includes('anime')) return 'flux-anime'
-  if (normalized.includes('photo') || normalized.includes('real')) return 'flux-realism'
-  return 'flux'
+  if (normalized.includes('anime')) return 'turbo'
+  if (normalized.includes('photo') || normalized.includes('real')) return 'turbo'
+  return 'turbo'
 }
 
 export async function POST(req: NextRequest) {
   const user = await verifyToken(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { prompt, model = 'flux', width = 1024, height = 1024 } = await req.json()
+  const { prompt, model = 'flux', width = 512, height = 512 } = await req.json()
   if (!prompt) return NextResponse.json({ error: 'Missing prompt' }, { status: 400 })
 
   const seed = Math.floor(Math.random() * 999999)
@@ -58,13 +58,25 @@ export async function POST(req: NextRequest) {
         const url = data.data[0]?.url
         const revisedPrompt = data.data[0]?.revised_prompt || prompt
         if (url) return NextResponse.json({ url, prompt: revisedPrompt, source: 'dalle3' })
+      } else {
+        const errData = await response.json().catch(() => ({}))
+        const msg = errData.error?.message || `HTTP ${response.status}`
+        console.error('DALL-E 3 failed:', response.status, msg)
+        const isQuotaError = response.status === 429 || msg.toLowerCase().includes('quota') || msg.toLowerCase().includes('billing') || msg.toLowerCase().includes('credit')
+        if (userKeys.openai && !isQuotaError) {
+          return NextResponse.json({ error: `OpenAI: ${msg}` }, { status: 502 })
+        }
+        if (isQuotaError) console.warn('DALL-E 3 quota exceeded, falling back to free generation')
       }
-    } catch (err: any) { console.error('DALL-E 3 error:', err) }
+    } catch (err: any) {
+      console.error('DALL-E 3 error:', err)
+      if (userKeys.openai) {
+        return NextResponse.json({ error: `OpenAI connection failed: ${err.message}` }, { status: 502 })
+      }
+    }
   }
 
-  // 2. HuggingFace FLUX.1-schnell — only attempt when an API key is configured.
-  //    Anonymous HF requests are unreliable (model cold starts, low quota) and
-  //    waste up to 48s before timing out, making the UI feel frozen.
+  // 2. HuggingFace FLUX.1-schnell — only when API key configured
   if (hfKey) try {
     const ctrl = new AbortController()
     const timeoutId = setTimeout(() => ctrl.abort(), 25000)
@@ -74,46 +86,34 @@ export async function POST(req: NextRequest) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(hfKey ? { Authorization: `Bearer ${hfKey}` } : {}),
+          Authorization: `Bearer ${hfKey}`,
         },
         body: JSON.stringify({
           inputs: prompt,
-          parameters: {
-            width: safeSize.width,
-            height: safeSize.height,
-            num_inference_steps: 4,
-          },
+          parameters: { width: safeSize.width, height: safeSize.height, num_inference_steps: 4 },
         }),
         signal: ctrl.signal,
       }
     )
     clearTimeout(timeoutId)
-
     if (hfRes.ok) {
       const contentType = hfRes.headers.get('content-type') || ''
-      // Only proceed if HuggingFace returned actual image bytes, not a JSON error body
-      // (HF can return status 200 with {"error":"...","estimated_time":20} when loading)
       if (contentType.startsWith('image/')) {
         const buffer = await hfRes.arrayBuffer()
-        if (buffer.byteLength > 1000) { // sanity-check: real images are > 1KB
+        if (buffer.byteLength > 1000) {
           const base64 = Buffer.from(buffer).toString('base64')
-          const dataUrl = `data:${contentType};base64,${base64}`
-          return NextResponse.json({ url: dataUrl, prompt, source: 'huggingface' })
+          return NextResponse.json({ url: `data:${contentType};base64,${base64}`, prompt, source: 'huggingface' })
         }
       }
-      const body = await hfRes.text().catch(() => '')
-      console.error('HuggingFace non-image response:', contentType, body.slice(0, 200))
-    } else {
-      console.error('HuggingFace error:', hfRes.status, await hfRes.text().catch(() => ''))
     }
   } catch (err: any) {
     console.error('HuggingFace fetch error:', err.message)
   }
 
-  // 3. Pollinations URL fallback — browser loads directly (Vercel IPs are blocked
-  //    server-side). May have rate limits when multiple images load concurrently.
+  // 3. Pollinations — return URL for browser to load directly (user's own IP, not shared Vercel IP).
+  //    DO NOT fetch server-side: Vercel's shared IP gets rate-limited by Pollinations (max 1 queue).
   const pollinationsModel = resolvePollinationsModel(model)
   const encoded = encodeURIComponent(prompt)
-  const url = `https://image.pollinations.ai/prompt/${encoded}?width=${safeSize.width}&height=${safeSize.height}&seed=${seed}&nologo=true&model=${pollinationsModel}`
-  return NextResponse.json({ url, prompt, source: 'pollinations' })
+  const pollinationsUrl = `https://image.pollinations.ai/prompt/${encoded}?width=${safeSize.width}&height=${safeSize.height}&seed=${seed}&nologo=true&model=${pollinationsModel}`
+  return NextResponse.json({ url: pollinationsUrl, prompt, source: 'pollinations' })
 }

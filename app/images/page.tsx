@@ -4,11 +4,11 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   Sparkles, Download, Maximize2, RotateCcw, Paperclip, ChevronDown,
-  X, Loader2, Wand2, Image as ImageIcon, Zap, Clock, RefreshCw
+  X, Loader2, Wand2, Image as ImageIcon, Zap, Clock, RefreshCw, AlertCircle
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface GalleryImage {
   id: string
@@ -18,9 +18,9 @@ interface GalleryImage {
   timestamp: number
   aspectRatio: string
   isNew?: boolean
-  isLoading?: boolean
   width: number
   height: number
+  source?: string
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -76,36 +76,11 @@ const EXAMPLE_PROMPTS = [
   { prompt: 'vintage sports car classic photography', w: 768, h: 512 },
 ]
 
-// ─── Pollinations Queue ───────────────────────────────────────────────────────
-// Pollinations rate-limits anonymous users to ~1 concurrent request per IP.
-// This queue ensures only 1 browser <img> request is in-flight at a time.
-
-let _pollinationsSlotFree = true
-const _pollinationsWaiters: Array<() => void> = []
-
-function claimPollinationsSlot(cb: () => void) {
-  if (_pollinationsSlotFree) {
-    _pollinationsSlotFree = false
-    cb()
-  } else {
-    _pollinationsWaiters.push(cb)
-  }
-}
-
-function freePollinationsSlot() {
-  const next = _pollinationsWaiters.shift()
-  if (next) {
-    next()
-  } else {
-    _pollinationsSlotFree = true
-  }
-}
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function pollinationsUrl(prompt: string, w: number, h: number, seed?: number) {
-  const seedParam = seed ? `&seed=${seed}` : ''
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${h}&nologo=true&model=turbo${seedParam}`
+function pollinationsUrl(prompt: string, w: number, h: number) {
+  const seed = Math.floor(Math.random() * 999999)
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${h}&nologo=true&model=turbo&seed=${seed}`
 }
 
 function clampSize(width: number, height: number, maxEdge = 512) {
@@ -127,25 +102,9 @@ function timeAgo(ts: number) {
   return `${Math.floor(d / 3600000)}h ago`
 }
 
-// ─── Skeleton Card ────────────────────────────────────────────────────────────
-
-function SkeletonCard() {
-  return (
-    <div className="break-inside-avoid mb-4 rounded-2xl overflow-hidden bg-surface-muted animate-pulse" style={{ height: 280 }}>
-      <div className="w-full h-full bg-gradient-to-br from-surface-hover to-surface-muted flex flex-col items-center justify-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-surface-active flex items-center justify-center">
-          <Loader2 className="w-5 h-5 text-muted animate-spin" />
-        </div>
-        <div className="space-y-2 text-center">
-          <div className="h-2 w-32 bg-surface-hover rounded mx-auto" />
-          <div className="h-2 w-20 bg-surface-hover rounded mx-auto" />
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── Image Card ───────────────────────────────────────────────────────────────
+// Simple, clean image card — loads image directly, shows spinner, retry on failure.
+// No complex queue needed because we disable Generate while a Pollinations image loads.
 
 interface ImageCardProps {
   img: GalleryImage
@@ -153,136 +112,126 @@ interface ImageCardProps {
   onDownload: (img: GalleryImage) => void
   onRemix: (prompt: string) => void
   onResolved?: (id: string, resolvedUrl: string) => void
+  onLoadStateChange?: (id: string, loading: boolean) => void
 }
 
-function ImageCard({ img, onExpand, onDownload, onRemix, onResolved }: ImageCardProps) {
-  const isPollinationsUrl = img.url.includes('pollinations.ai')
-  // activeSrc: null = waiting for queue slot, string = actively loading
-  const [activeSrc, setActiveSrc] = useState<string | null>(isPollinationsUrl ? null : img.url)
+function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadStateChange }: ImageCardProps) {
+  const [src, setSrc] = useState(img.url)
   const [loaded, setLoaded] = useState(false)
   const [errored, setErrored] = useState(false)
   const [elapsed, setElapsed] = useState(0)
-  const [queued, setQueued] = useState(isPollinationsUrl)
-  const retriesRef = useRef(0)
-  const MAX_RETRIES = 5
-  const pendingSrcRef = useRef(img.url) // URL to load when slot is available
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const mountedRef = useRef(true)
+  const isDataUrl = img.url.startsWith('data:') || img.url.startsWith('blob:')
 
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false } }, [])
 
-  // Claim a Pollinations slot on mount
+  // If it's a data/blob URL, it's already loaded — show immediately
   useEffect(() => {
-    if (!img.url.includes('pollinations.ai')) return
-    let cancelled = false
-    claimPollinationsSlot(() => {
-      if (!cancelled && mountedRef.current) {
-        setQueued(false)
-        setActiveSrc(pendingSrcRef.current)
-      } else {
-        // Component gone — release immediately so next waiter can proceed
-        freePollinationsSlot()
-      }
-    })
+    if (isDataUrl) { setLoaded(true); return }
+    setSrc(img.url)
+    setLoaded(false)
+    setErrored(false)
+    onLoadStateChange?.(img.id, true)
     return () => {
-      cancelled = true
       if (timerRef.current) clearTimeout(timerRef.current)
+      if (elapsedRef.current) clearInterval(elapsedRef.current)
     }
   }, [img.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Tick elapsed seconds while actively loading (not queued, not done)
+  // Tick elapsed while loading
   useEffect(() => {
-    if (queued || loaded || errored) { if (elapsedRef.current) clearInterval(elapsedRef.current); return }
+    if (isDataUrl || loaded || errored) {
+      if (elapsedRef.current) clearInterval(elapsedRef.current)
+      return
+    }
     setElapsed(0)
     elapsedRef.current = setInterval(() => setElapsed(s => s + 1), 1000)
     return () => { if (elapsedRef.current) clearInterval(elapsedRef.current) }
-  }, [activeSrc, queued, loaded, errored])
+  }, [src, loaded, errored, isDataUrl])
 
-  // Force retry after 40s if still loading (Pollinations sometimes stalls silently)
+  // 50s hard timeout — show error so user can retry
   useEffect(() => {
-    if (queued || loaded || errored || !activeSrc) return
-    const t = setTimeout(() => { if (mountedRef.current) handleError() }, 40000)
-    return () => clearTimeout(t)
-  }, [activeSrc, queued, loaded, errored]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (isDataUrl || loaded || errored) return
+    timerRef.current = setTimeout(() => {
+      if (mountedRef.current && !loaded) {
+        setErrored(true)
+        onLoadStateChange?.(img.id, false)
+      }
+    }, 50000)
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+  }, [src, loaded, errored, isDataUrl]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLoad = () => {
-    if (img.url.includes('pollinations.ai')) freePollinationsSlot()
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (elapsedRef.current) clearInterval(elapsedRef.current)
     setLoaded(true)
-    onResolved?.(img.id, activeSrc!)
+    onLoadStateChange?.(img.id, false)
+    onResolved?.(img.id, src)
   }
 
   const handleError = () => {
-    if (retriesRef.current < MAX_RETRIES && (pendingSrcRef.current || activeSrc || '').includes('pollinations.ai')) {
-      retriesRef.current++
-      // Release slot while waiting to retry (30s) so other queued images can proceed
-      freePollinationsSlot()
-      setActiveSrc(null)
-      timerRef.current = setTimeout(() => {
-        if (!mountedRef.current) return
-        const seed = Math.floor(Math.random() * 999999)
-        const newUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(img.prompt)}?width=${img.width}&height=${img.height}&nologo=true&seed=${seed}&model=turbo`
-        pendingSrcRef.current = newUrl
-        claimPollinationsSlot(() => {
-          if (mountedRef.current) {
-            setActiveSrc(newUrl)
-          } else {
-            freePollinationsSlot()
-          }
-        })
-      }, 30000)
-    } else {
-      if ((pendingSrcRef.current || activeSrc || '').includes('pollinations.ai')) freePollinationsSlot()
-      setErrored(true)
-    }
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (elapsedRef.current) clearInterval(elapsedRef.current)
+    setErrored(true)
+    onLoadStateChange?.(img.id, false)
   }
 
   const handleRetry = (e: React.MouseEvent) => {
     e.stopPropagation()
-    retriesRef.current = 0
     setErrored(false)
     setLoaded(false)
-    const seed = Math.floor(Math.random() * 999999)
-    const newUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(img.prompt)}?width=${img.width}&height=${img.height}&nologo=true&seed=${seed}&model=turbo`
-    pendingSrcRef.current = newUrl
-    setQueued(true)
-    setActiveSrc(null)
-    claimPollinationsSlot(() => {
-      if (mountedRef.current) {
-        setQueued(false)
-        setActiveSrc(newUrl)
-      } else {
-        freePollinationsSlot()
-      }
-    })
+    onLoadStateChange?.(img.id, true)
+    const newUrl = pollinationsUrl(img.prompt, img.width, img.height)
+    setSrc(newUrl)
   }
 
-  const resolvedImg = { ...img, url: activeSrc || img.url }
+  const resolvedImg = { ...img, url: src }
 
   return (
     <div
       className="break-inside-avoid mb-4 group relative rounded-2xl overflow-hidden bg-surface-muted shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer"
       style={{ transform: 'translateZ(0)' }}
     >
-      {/* Loading overlay — shown until img fires onLoad */}
+      {/* Loading overlay */}
       {!loaded && !errored && (
-        <div className="flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-surface-hover to-surface-muted" style={{ minHeight: 200 }}>
-          <Loader2 className="w-5 h-5 text-muted animate-spin" />
-          <span className="text-muted text-[10px] text-center px-2">
-            {queued
-              ? 'Queued — waiting for previous image…'
-              : retriesRef.current > 0
-                ? `Retrying… ${Math.max(0, 30 - (elapsed % 30))}s`
-                : elapsed < 3 ? 'Generating…' : elapsed < 20 ? `Generating… ${elapsed}s` : `Still loading… ${elapsed}s`}
-          </span>
+        <div className="flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-surface-hover to-surface-muted" style={{ minHeight: 200 }}>
+          <div className="relative">
+            <div className="w-12 h-12 rounded-full border-2 border-purple-200 border-t-purple-500 animate-spin" />
+            <Sparkles className="w-4 h-4 text-purple-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+          </div>
+          <div className="text-center">
+            <p className="text-primary text-xs font-medium">
+              {elapsed < 5 ? 'Generating…' : `Generating… ${elapsed}s`}
+            </p>
+            {elapsed > 15 && (
+              <p className="text-muted text-[10px] mt-1">AI image takes 15–50s</p>
+            )}
+          </div>
         </div>
       )}
 
-      {/* Image — always uses <img> tag (avoids CORS issues with fetch) */}
-      {!errored && activeSrc && (
+      {/* Error state */}
+      {errored && (
+        <div className="w-full h-48 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-surface-muted to-bg px-4">
+          <AlertCircle className="w-8 h-8 text-muted" />
+          <p className="text-muted text-xs text-center leading-relaxed line-clamp-2">{img.prompt}</p>
+          <p className="text-muted text-[10px] text-center">Service busy or slow — try again</p>
+          <button
+            onClick={handleRetry}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-500 text-white text-xs font-semibold hover:from-purple-500 hover:to-pink-400 transition-all shadow-sm"
+          >
+            <RefreshCw className="w-3 h-3" /> Try Again
+          </button>
+        </div>
+      )}
+
+      {/* Image */}
+      {!errored && (
         <img
-          key={activeSrc}
-          src={activeSrc}
+          key={src}
+          src={src}
           alt={img.prompt}
           onLoad={handleLoad}
           onError={handleError}
@@ -291,23 +240,7 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved }: ImageCard
         />
       )}
 
-      {/* Error state */}
-      {errored && (
-        <div className="w-full h-48 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-surface-muted to-bg">
-          <div className="w-10 h-10 rounded-full bg-surface-hover flex items-center justify-center">
-            <ImageIcon className="w-4 h-4 text-muted" />
-          </div>
-          <p className="text-muted text-xs text-center px-4 leading-relaxed line-clamp-2">{img.prompt}</p>
-          <button
-            onClick={handleRetry}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-border text-secondary text-xs hover:bg-surface-hover hover:text-primary transition-colors shadow-sm"
-          >
-            <RefreshCw className="w-3 h-3" /> Retry
-          </button>
-        </div>
-      )}
-
-      {/* Hover overlay — only shown when image is loaded */}
+      {/* Hover overlay */}
       {loaded && !errored && (
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <div className="absolute top-3 right-3 flex gap-2">
@@ -346,8 +279,15 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved }: ImageCard
 
       {img.isNew && (
         <div className="absolute top-3 left-3">
-          <span className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-pink-500 text-white text-[10px] font-semibold rounded-full shadow-lg">
-            NEW
+          <span className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-pink-500 text-white text-[10px] font-semibold rounded-full shadow-lg">NEW</span>
+        </div>
+      )}
+
+      {/* Source badge */}
+      {img.source && img.source !== 'pollinations' && loaded && (
+        <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="px-1.5 py-0.5 bg-black/40 backdrop-blur-sm text-white/70 text-[9px] rounded uppercase tracking-wide">
+            {img.source === 'dalle3' ? 'DALL·E 3' : img.source === 'huggingface' ? 'FLUX' : img.source}
           </span>
         </div>
       )}
@@ -356,8 +296,6 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved }: ImageCard
 }
 
 // ─── Lightbox Image ───────────────────────────────────────────────────────────
-// The lightbox receives the already-resolved URL (blob: or data:) from the
-// ImageCard via onResolved, so no retry logic is needed here.
 
 function LightboxImage({ url, prompt }: { url: string; prompt: string }) {
   const [src, setSrc] = useState(url)
@@ -367,7 +305,6 @@ function LightboxImage({ url, prompt }: { url: string; prompt: string }) {
       src={src}
       alt={prompt}
       onError={() => {
-        // Only try proxy for DALL-E / external CDN URLs
         if (!src.startsWith('blob:') && !src.startsWith('data:') && !src.startsWith('/api/images/proxy') && !src.includes('pollinations.ai')) {
           setSrc(`/api/images/proxy?url=${encodeURIComponent(url)}`)
         }
@@ -393,6 +330,7 @@ export default function ImagesPage() {
 
   // UI state
   const [generating, setGenerating] = useState(false)
+  const [generatingStatus, setGeneratingStatus] = useState('Generating…')
   const [enhancing, setEnhancing] = useState(false)
   const [modelOpen, setModelOpen] = useState(false)
   const [lightbox, setLightbox] = useState<GalleryImage | null>(null)
@@ -400,7 +338,9 @@ export default function ImagesPage() {
   // Gallery
   const [generatedImages, setGeneratedImages] = useState<GalleryImage[]>([])
   const [exampleImages, setExampleImages] = useState<GalleryImage[]>([])
-  const [showSkeleton, setShowSkeleton] = useState(false)
+
+  // Track Pollinations images that are currently loading (to prevent concurrent requests)
+  const [pollinationsLoadingIds, setPollinationsLoadingIds] = useState<Set<string>>(new Set())
 
   // History
   const [history, setHistory] = useState<GalleryImage[]>([])
@@ -409,9 +349,9 @@ export default function ImagesPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const modelDropdownRef = useRef<HTMLDivElement>(null)
 
-  // Load example images on mount — use Picsum (reliable CDN, no rate limits)
-  // Pollinations allows only 1 concurrent request/IP; using it for examples would
-  // fill the queue and block actual generation requests.
+  const pollinationsLoading = pollinationsLoadingIds.size > 0
+
+  // Load example images from Picsum (reliable CDN, no rate limits)
   useEffect(() => {
     const examples: GalleryImage[] = EXAMPLE_PROMPTS.map((ep, i) => ({
       id: `example-${i}`,
@@ -438,6 +378,15 @@ export default function ImagesPage() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  const handleLoadStateChange = useCallback((id: string, loading: boolean) => {
+    setPollinationsLoadingIds(prev => {
+      const next = new Set(prev)
+      if (loading) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  }, [])
+
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -452,14 +401,9 @@ export default function ImagesPage() {
   const handleEnhancePrompt = async () => {
     if (!prompt.trim() || enhancing) return
     setEnhancing(true)
-    // Simulate AI enhancement by appending quality descriptors
     await new Promise(r => setTimeout(r, 900))
-    const enhancements = [
-      'highly detailed', 'professional quality', 'sharp focus',
-      'beautiful composition', 'stunning lighting', 'award winning photography',
-    ]
-    const picked = enhancements.slice(0, 3).join(', ')
-    setPrompt(p => p.trim() + `, ${picked}`)
+    const enhancements = ['highly detailed', 'professional quality', 'sharp focus', 'beautiful composition', 'stunning lighting', 'award winning photography']
+    setPrompt(p => p.trim() + `, ${enhancements.slice(0, 3).join(', ')}`)
     setEnhancing(false)
     toast.success('Prompt enhanced!')
   }
@@ -472,33 +416,9 @@ export default function ImagesPage() {
       ? base + ', maintain the style and composition of the reference image' + selectedStyle.suffix
       : base + selectedStyle.suffix
     const safeSize = clampSize(selectedRatio.width, selectedRatio.height)
-    let fallbackUsed = false
-    const fallbackToPollinations = () => {
-      if (fallbackUsed) return
-      fallbackUsed = true
-      const seed = Math.floor(Math.random() * 999999)
-      const url = pollinationsUrl(finalPrompt, safeSize.width, safeSize.height, seed)
-      const newImg: GalleryImage = {
-        id: `gen-${Date.now()}`,
-        url,
-        prompt: base,
-        style: selectedStyle.label,
-        timestamp: Date.now(),
-        aspectRatio: selectedRatio.id,
-        isNew: true,
-        width: safeSize.width,
-        height: safeSize.height,
-      }
-      setGeneratedImages(prev => [newImg, ...prev])
-      setHistory(prev => [newImg, ...prev].slice(0, 8))
-      setPrompt('')
-      setUploadedImage(null)
-      setUploadedImageName('')
-      toast.success('Image generated!')
-    }
 
     setGenerating(true)
-    setShowSkeleton(true)
+    setGeneratingStatus('Connecting to AI…')
 
     try {
       let token = await getToken()
@@ -508,12 +428,17 @@ export default function ImagesPage() {
       }
 
       if (!token) {
-        fallbackToPollinations()
+        // No token — go straight to Pollinations
+        const url = pollinationsUrl(finalPrompt, safeSize.width, safeSize.height)
+        addImage({ url, prompt: base, source: 'pollinations', safeSize })
+        toast.success('Generating image…')
         return
       }
 
+      setGeneratingStatus('Generating your image…')
+
       const ctrl = new AbortController()
-      const clientTimeout = setTimeout(() => ctrl.abort(), 20000)
+      const clientTimeout = setTimeout(() => ctrl.abort(), 25000)
 
       let res: Response
       try {
@@ -528,59 +453,68 @@ export default function ImagesPage() {
           }),
           signal: ctrl.signal,
         })
-      } catch (fetchErr: any) {
+      } catch {
         clearTimeout(clientTimeout)
-        // Timeout or network error → fall back to Pollinations immediately
-        fallbackToPollinations()
+        // Network error or timeout — fall back to Pollinations
+        const url = pollinationsUrl(finalPrompt, safeSize.width, safeSize.height)
+        addImage({ url, prompt: base, source: 'pollinations', safeSize })
+        toast.success('Generating image (free mode)…')
         return
       }
       clearTimeout(clientTimeout)
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        if (res.status === 401 || res.status === 503) {
-          fallbackToPollinations()
-          return
-        }
-        // 502 = API key configured but upstream failed — show real error, don't silently fallback
         if (res.status === 502) {
           toast.error(data.error || 'Image generation failed')
           return
         }
-        throw new Error(data.error || 'Generation failed')
+        // Any other error → Pollinations fallback
+        const url = pollinationsUrl(finalPrompt, safeSize.width, safeSize.height)
+        addImage({ url, prompt: base, source: 'pollinations', safeSize })
+        toast.success('Generating image (free mode)…')
+        return
       }
 
       const data = await res.json()
-      const newImg: GalleryImage = {
-        id: `gen-${Date.now()}`,
-        url: data.url,
-        prompt: base,
-        style: selectedStyle.label,
-        timestamp: Date.now(),
-        aspectRatio: selectedRatio.id,
-        isNew: true,
-        width: selectedRatio.width,
-        height: selectedRatio.height,
-      }
 
-      setGeneratedImages(prev => [newImg, ...prev])
-      setHistory(prev => [newImg, ...prev].slice(0, 8))
-      setPrompt('')
-      setUploadedImage(null)
-      setUploadedImageName('')
-      toast.success('Image generated!')
+      if (data.source === 'dalle3') setGeneratingStatus('Generated with DALL·E 3!')
+      else if (data.source === 'huggingface') setGeneratingStatus('Generated with FLUX AI!')
+      else setGeneratingStatus('Generating…')
+
+      addImage({ url: data.url, prompt: data.prompt || base, source: data.source, safeSize })
+      toast.success(
+        data.source === 'dalle3' ? 'Generated with DALL·E 3!' :
+        data.source === 'huggingface' ? 'Generated with FLUX AI!' : 'Image generated!'
+      )
     } catch (err: unknown) {
-      if (!fallbackUsed) {
-        fallbackToPollinations()
-        return
-      }
       const msg = err instanceof Error ? err.message : 'Failed to generate'
       toast.error(msg)
     } finally {
       setGenerating(false)
-      setShowSkeleton(false)
+      setGeneratingStatus('Generating…')
+      setPrompt('')
+      setUploadedImage(null)
+      setUploadedImageName('')
     }
-  }, [prompt, generating, selectedStyle, selectedRatio, selectedModel, uploadedImage, getToken])
+  }, [prompt, generating, selectedStyle, selectedRatio, selectedModel, uploadedImage, getToken]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function addImage({ url, prompt: imgPrompt, source, safeSize }: { url: string; prompt: string; source: string; safeSize: { width: number; height: number } }) {
+    const newImg: GalleryImage = {
+      id: `gen-${Date.now()}`,
+      url,
+      prompt: imgPrompt,
+      style: selectedStyle.label,
+      timestamp: Date.now(),
+      aspectRatio: selectedRatio.id,
+      isNew: true,
+      width: source === 'pollinations' ? safeSize.width : selectedRatio.width,
+      height: source === 'pollinations' ? safeSize.height : selectedRatio.height,
+      source,
+    }
+    setGeneratedImages(prev => [newImg, ...prev])
+    setHistory(prev => [newImg, ...prev].slice(0, 8))
+  }
 
   const handleResolved = useCallback((id: string, resolvedUrl: string) => {
     setGeneratedImages(prev => prev.map(img => img.id === id ? { ...img, url: resolvedUrl } : img))
@@ -594,7 +528,6 @@ export default function ImagesPage() {
     try {
       let blob: Blob
       if (img.url.startsWith('blob:')) {
-        // Already a resolved blob URL — just re-fetch it
         const res = await fetch(img.url)
         blob = await res.blob()
       } else if (img.url.startsWith('data:')) {
@@ -612,9 +545,7 @@ export default function ImagesPage() {
         const controller = new AbortController()
         const timer = setTimeout(() => controller.abort(), 20000)
         try {
-          const fetchUrl = img.url.startsWith('/api/images/proxy')
-            ? img.url
-            : '/api/images/proxy?url=' + encodeURIComponent(img.url)
+          const fetchUrl = img.url.startsWith('/api/images/proxy') ? img.url : '/api/images/proxy?url=' + encodeURIComponent(img.url)
           const res = await fetch(fetchUrl, { signal: controller.signal })
           clearTimeout(timer)
           if (!res.ok) throw new Error('proxy failed')
@@ -643,6 +574,7 @@ export default function ImagesPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  const isDisabled = generating || (pollinationsLoading && generatedImages.some(img => img.source === 'pollinations' && img.isNew))
   const allGalleryImages = [...generatedImages, ...exampleImages]
 
   return (
@@ -657,7 +589,7 @@ export default function ImagesPage() {
           <h1 className="text-3xl font-bold tracking-tight text-primary">AI Image Studio</h1>
         </div>
         <p className="text-secondary text-base max-w-lg">
-          Create stunning visuals with AI — free, instant, no account needed
+          Generate stunning AI images — powered by DALL·E 3, FLUX, and more
         </p>
       </div>
 
@@ -702,6 +634,14 @@ export default function ImagesPage() {
                 </div>
               )}
             </div>
+
+            {/* Show "waiting" hint when a Pollinations image is loading */}
+            {pollinationsLoading && (
+              <span className="ml-auto text-[11px] text-amber-500 flex items-center gap-1">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Image loading — wait before generating again
+              </span>
+            )}
           </div>
 
           {/* Textarea */}
@@ -720,15 +660,13 @@ export default function ImagesPage() {
               value={prompt}
               onChange={e => setPrompt(e.target.value.slice(0, 5000))}
               onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) handleGenerate() }}
-              placeholder="Describe an image or upload your photo, and I'll create something unique…"
+              placeholder="Describe your image… e.g. 'a lion in golden hour, photorealistic 4K'"
               className="w-full resize-none outline-none bg-transparent text-primary text-base placeholder:text-muted min-h-[100px] leading-relaxed"
               rows={4}
               disabled={generating}
             />
-            {/* Bottom bar of textarea */}
             <div className="flex items-center justify-between mt-2">
               <div className="flex items-center gap-2">
-                {/* Upload */}
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
                 <button
                   onClick={() => fileRef.current?.click()}
@@ -738,12 +676,10 @@ export default function ImagesPage() {
                   <Paperclip className="w-3.5 h-3.5" />
                   <span>Upload</span>
                 </button>
-                {/* Enhance */}
                 <button
                   onClick={handleEnhancePrompt}
                   disabled={!prompt.trim() || enhancing}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 text-purple-500 hover:text-purple-700 hover:bg-purple-50 disabled:opacity-40 rounded-lg transition-all text-xs font-medium"
-                  title="Enhance prompt with AI"
                 >
                   {enhancing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                   <span>Enhance</span>
@@ -753,11 +689,20 @@ export default function ImagesPage() {
                 <span className="text-xs text-muted">{prompt.length}/5000</span>
                 <button
                   onClick={handleGenerate}
-                  disabled={!prompt.trim() || generating}
+                  disabled={!prompt.trim() || isDisabled}
                   className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl shadow-md shadow-purple-200 hover:shadow-purple-300 transition-all active:scale-95"
                 >
-                  {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                  {generating ? 'Generating…' : 'Generate'}
+                  {generating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="max-w-[120px] truncate">{generatingStatus}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4" />
+                      Generate
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -766,7 +711,6 @@ export default function ImagesPage() {
 
         {/* ── Quick Settings Row ───────────────────────────────────── */}
         <div className="space-y-3">
-          {/* Aspect ratio */}
           <div className="flex items-center gap-3 flex-wrap">
             <span className="text-xs text-muted font-medium uppercase tracking-wide w-20 shrink-0">Ratio</span>
             <div className="flex items-center gap-2">
@@ -781,9 +725,7 @@ export default function ImagesPage() {
                   }`}
                 >
                   <span>{r.label}</span>
-                  <span className={`ml-1 ${selectedRatio.id === r.id ? 'text-white/70' : 'text-muted'}`}>
-                    {r.short}
-                  </span>
+                  <span className={`ml-1 ${selectedRatio.id === r.id ? 'text-white/70' : 'text-muted'}`}>{r.short}</span>
                 </button>
               ))}
             </div>
@@ -805,7 +747,6 @@ export default function ImagesPage() {
             </div>
           </div>
 
-          {/* Style presets */}
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted font-medium uppercase tracking-wide w-20 shrink-0">Style</span>
             <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none flex-1">
@@ -847,14 +788,6 @@ export default function ImagesPage() {
           </div>
 
           <div className="columns-2 md:columns-4 gap-4">
-            {/* Skeleton while generating */}
-            {showSkeleton && (
-              <>
-                <SkeletonCard />
-                <SkeletonCard />
-              </>
-            )}
-
             {allGalleryImages.map(img => (
               <ImageCard
                 key={img.id}
@@ -863,6 +796,7 @@ export default function ImagesPage() {
                 onDownload={handleDownload}
                 onRemix={handleRemix}
                 onResolved={handleResolved}
+                onLoadStateChange={handleLoadStateChange}
               />
             ))}
           </div>
@@ -901,7 +835,6 @@ export default function ImagesPage() {
             className="relative max-w-4xl w-full bg-surface rounded-2xl overflow-hidden shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
-            {/* Close */}
             <button
               onClick={() => setLightbox(null)}
               className="absolute top-4 right-4 z-10 w-8 h-8 bg-black/20 hover:bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center transition-all"
@@ -909,10 +842,8 @@ export default function ImagesPage() {
               <X className="w-4 h-4 text-white" />
             </button>
 
-            {/* Image */}
             <LightboxImage url={lightbox.url} prompt={lightbox.prompt} />
 
-            {/* Info panel */}
             <div className="p-5 border-t border-border">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -921,6 +852,11 @@ export default function ImagesPage() {
                     <span className="px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full font-medium">{lightbox.style}</span>
                     <span>{lightbox.aspectRatio}</span>
                     {lightbox.timestamp > 0 && <span>{timeAgo(lightbox.timestamp)}</span>}
+                    {lightbox.source && lightbox.source !== 'pollinations' && (
+                      <span className="px-2 py-0.5 bg-green-50 text-green-600 rounded-full font-medium uppercase text-[10px]">
+                        {lightbox.source === 'dalle3' ? 'DALL·E 3' : lightbox.source === 'huggingface' ? 'FLUX' : lightbox.source}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
