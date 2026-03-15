@@ -122,6 +122,7 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
   const [elapsed, setElapsed] = useState(0)
   const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const mountedRef = useRef(true)
+  const loadedRef = useRef(false)   // mirrors `loaded` state — safe to read in timer closures
   const retryCountRef = useRef(0)
   const startTimeRef = useRef(Date.now())
   const isDataUrl = img.url.startsWith('data:') || img.url.startsWith('blob:')
@@ -130,8 +131,9 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
 
   // If it's a data/blob URL, it's already loaded — show immediately
   useEffect(() => {
-    if (isDataUrl) { setLoaded(true); return }
+    if (isDataUrl) { loadedRef.current = true; setLoaded(true); return }
     setSrc(img.url)
+    loadedRef.current = false
     setLoaded(false)
     setErrored(false)
     retryCountRef.current = 0
@@ -152,19 +154,20 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
     return () => { if (elapsedRef.current) clearInterval(elapsedRef.current) }
   }, [img.id, loaded, errored, isDataUrl]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Timers fire ONCE per image (keyed to img.id, not src) — retries don't reset them
+  // Timers fire ONCE per image (keyed to img.id, not src).
+  // Use loadedRef (not stale closure `loaded`) so they don't fire after successful load.
   useEffect(() => {
     if (isDataUrl) return
     // 45s: silently swap to a new seed (Pollinations slow for this seed)
     const retryTimer = setTimeout(() => {
-      if (mountedRef.current && !loaded) {
+      if (mountedRef.current && !loadedRef.current) {
         retryCountRef.current += 1
         setSrc(pollinationsUrl(img.prompt, img.width, img.height))
       }
     }, 45000)
     // 90s: give up
     const giveUpTimer = setTimeout(() => {
-      if (mountedRef.current && !loaded) {
+      if (mountedRef.current && !loadedRef.current) {
         setErrored(true)
         onLoadStateChange?.(img.id, false)
       }
@@ -174,13 +177,14 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
 
   const handleLoad = () => {
     if (elapsedRef.current) clearInterval(elapsedRef.current)
+    loadedRef.current = true
     setLoaded(true)
     onLoadStateChange?.(img.id, false)
     onResolved?.(img.id, src)
   }
 
   const handleError = () => {
-    if (!mountedRef.current || loaded) return
+    if (!mountedRef.current || loadedRef.current) return
     retryCountRef.current += 1
     // Allow up to 3 retries on HTTP error, then give up immediately
     if (retryCountRef.current <= 3) {
