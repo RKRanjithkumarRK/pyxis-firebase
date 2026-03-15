@@ -3,7 +3,7 @@ import { verifyToken } from '@/lib/auth-helper'
 import { adminDb } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 30
+export const maxDuration = 55
 
 function normalizeSize(width: number, height: number, maxEdge = 1024) {
   const safeWidth = Number.isFinite(width) && width > 0 ? width : 1024
@@ -36,11 +36,13 @@ export async function POST(req: NextRequest) {
   const seed = Math.floor(Math.random() * 999999)
   const safeSize = normalizeSize(width, height)
 
-  // Check if user has OpenAI key — use DALL-E 3 if available
+  // Fetch user API keys
   const keyDoc = await adminDb.doc(`users/${user.uid}/private/apikeys`).get()
   const userKeys = keyDoc.exists ? keyDoc.data() || {} : {}
   const openaiKey = userKeys.openai || process.env.OPENAI_API_KEY
+  const hfKey = userKeys.huggingface || process.env.HUGGINGFACE_API_KEY
 
+  // 1. DALL-E 3 — best quality, requires OpenAI key
   if (openaiKey) {
     try {
       const isLandscape = width > height
@@ -60,9 +62,48 @@ export async function POST(req: NextRequest) {
     } catch (err: any) { console.error('DALL-E 3 error:', err) }
   }
 
-  // Return a Pollinations URL for the client to load directly.
-  // We do NOT fetch it server-side — Vercel's IP ranges are blocked by Pollinations.
-  // The browser <img> tag loads the URL directly from the user's IP, which works fine.
+  // 2. HuggingFace FLUX.1-schnell — free, server-side fetch, returns image bytes.
+  //    We convert to a base64 data URL so the client renders it instantly with no
+  //    external request. This completely avoids Pollinations' 1-concurrent-request
+  //    rate limit which causes images to fail when multiple are displayed at once.
+  try {
+    const ctrl = new AbortController()
+    const timeoutId = setTimeout(() => ctrl.abort(), 48000)
+    const hfRes = await fetch(
+      'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(hfKey ? { Authorization: `Bearer ${hfKey}` } : {}),
+        },
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: {
+            width: safeSize.width,
+            height: safeSize.height,
+            num_inference_steps: 4,
+          },
+        }),
+        signal: ctrl.signal,
+      }
+    )
+    clearTimeout(timeoutId)
+
+    if (hfRes.ok) {
+      const contentType = hfRes.headers.get('content-type') || 'image/jpeg'
+      const buffer = await hfRes.arrayBuffer()
+      const base64 = Buffer.from(buffer).toString('base64')
+      const dataUrl = `data:${contentType};base64,${base64}`
+      return NextResponse.json({ url: dataUrl, prompt, source: 'huggingface' })
+    }
+    console.error('HuggingFace error:', hfRes.status, await hfRes.text().catch(() => ''))
+  } catch (err: any) {
+    console.error('HuggingFace fetch error:', err.message)
+  }
+
+  // 3. Pollinations URL fallback — browser loads directly (Vercel IPs are blocked
+  //    server-side). May have rate limits when multiple images load concurrently.
   const pollinationsModel = resolvePollinationsModel(model)
   const encoded = encodeURIComponent(prompt)
   const url = `https://image.pollinations.ai/prompt/${encoded}?width=${safeSize.width}&height=${safeSize.height}&seed=${seed}&nologo=true&model=${pollinationsModel}`

@@ -163,7 +163,9 @@ function ImageCard({ img, onExpand, onDownload, onRemix }: ImageCardProps) {
   }
 
   const handleError = () => {
-    // For Pollinations: skip proxy (Vercel IPs are blocked), auto-retry with new seed
+    // data: URLs are embedded — they cannot fail. If somehow they do, show error immediately.
+    if (src.startsWith('data:')) { setErrored(true); return }
+    // For Pollinations: auto-retry with new seed (proxy blocked, rate limit 1 concurrent/IP)
     if (src.includes('pollinations.ai') && autoRetries < 4) {
       const nextRetry = autoRetries + 1
       setAutoRetries(nextRetry)
@@ -174,11 +176,11 @@ function ImageCard({ img, onExpand, onDownload, onRemix }: ImageCardProps) {
         const newSrc = `https://image.pollinations.ai/prompt/${encodeURIComponent(img.prompt)}?width=${img.width}&height=${img.height}&nologo=true&seed=${seed}&model=flux`
         setSrc(newSrc)
         setRetryKey(k => k + 1)
-      }, 25000) // 25s flat — lets Pollinations queue fully clear between attempts
+      }, 15000)
       return
     }
-    // For other URLs (DALL-E etc), try proxy once
-    if (!triedProxy && !img.url.startsWith('data:') && !img.url.startsWith('/api/images/proxy') && !src.includes('pollinations.ai')) {
+    // For DALL-E / other external URLs: try proxy once
+    if (!triedProxy && !img.url.startsWith('/api/images/proxy') && !src.includes('pollinations.ai')) {
       setTriedProxy(true)
       setLoaded(false)
       setErrored(false)
@@ -196,7 +198,7 @@ function ImageCard({ img, onExpand, onDownload, onRemix }: ImageCardProps) {
       {!loaded && !errored && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-surface-hover to-surface-muted animate-pulse" style={{ minHeight: 200 }}>
           <Loader2 className="w-5 h-5 text-muted animate-spin" />
-          <span className="text-muted text-[10px]">{autoRetries > 0 ? `Queue busy — retrying (${autoRetries}/4)` : 'Generating…'}</span>
+          <span className="text-muted text-[10px]">{autoRetries > 0 ? `Retrying (${autoRetries}/4)…` : src.startsWith('data:') ? 'Rendering…' : 'Generating…'}</span>
         </div>
       )}
       {!errored ? (
@@ -289,7 +291,8 @@ function LightboxImage({ url, prompt }: { url: string; prompt: string }) {
       src={src}
       alt={prompt}
       onError={() => {
-        // For Pollinations: retry with new seed (proxy also fails for these)
+        if (src.startsWith('data:')) return
+        // For Pollinations: retry with new seed
         if (src.includes('pollinations.ai') && retries < 4) {
           const next = retries + 1
           setRetries(next)
@@ -297,11 +300,11 @@ function LightboxImage({ url, prompt }: { url: string; prompt: string }) {
             const seed = Math.floor(Math.random() * 999999)
             setSrc(`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&nologo=true&seed=${seed}&model=flux`)
             setRetryKey(k => k + 1)
-          }, 3000 * next)
+          }, 15000)
           return
         }
         // For DALL-E / other URLs, try proxy once
-        if (!src.startsWith('data:') && !src.startsWith('/api/images/proxy') && !src.includes('pollinations.ai')) {
+        if (!src.startsWith('/api/images/proxy') && !src.includes('pollinations.ai')) {
           setSrc(`/api/images/proxy?url=${encodeURIComponent(url)}`)
         }
       }}
