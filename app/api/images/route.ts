@@ -62,13 +62,12 @@ export async function POST(req: NextRequest) {
     } catch (err: any) { console.error('DALL-E 3 error:', err) }
   }
 
-  // 2. HuggingFace FLUX.1-schnell — free, server-side fetch, returns image bytes.
-  //    We convert to a base64 data URL so the client renders it instantly with no
-  //    external request. This completely avoids Pollinations' 1-concurrent-request
-  //    rate limit which causes images to fail when multiple are displayed at once.
-  try {
+  // 2. HuggingFace FLUX.1-schnell — only attempt when an API key is configured.
+  //    Anonymous HF requests are unreliable (model cold starts, low quota) and
+  //    waste up to 48s before timing out, making the UI feel frozen.
+  if (hfKey) try {
     const ctrl = new AbortController()
-    const timeoutId = setTimeout(() => ctrl.abort(), 48000)
+    const timeoutId = setTimeout(() => ctrl.abort(), 25000)
     const hfRes = await fetch(
       'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell',
       {

@@ -179,7 +179,11 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved }: ImageCard
         await acquirePoll()
         if (cancelRef.current) { releasePoll(); return }
         try {
-          const res = await fetch(currentUrl)
+          // 45s timeout — Pollinations can be slow but should respond within that
+          const fetchCtrl = new AbortController()
+          const fetchTimeout = setTimeout(() => fetchCtrl.abort(), 45000)
+          const res = await fetch(currentUrl, { signal: fetchCtrl.signal })
+          clearTimeout(fetchTimeout)
           const ct = res.headers.get('content-type') || ''
           if (res.ok && ct.startsWith('image/')) {
             const blob = await res.blob()
@@ -199,7 +203,7 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved }: ImageCard
         if (attempt < 4 && !cancelRef.current) {
           const seed = Math.floor(Math.random() * 999999)
           currentUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(img.prompt)}?width=${img.width}&height=${img.height}&nologo=true&seed=${seed}&model=flux`
-          await new Promise(r => setTimeout(r, 3000))
+          await new Promise(r => setTimeout(r, 2000))
         }
       }
       if (!cancelRef.current) setErrored(true)
