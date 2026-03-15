@@ -305,7 +305,7 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
       {img.source && img.source !== 'pollinations' && loaded && (
         <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
           <span className="px-1.5 py-0.5 bg-black/40 backdrop-blur-sm text-white/70 text-[9px] rounded uppercase tracking-wide">
-            {img.source === 'dalle3' ? 'DALL·E 3' : img.source === 'huggingface' ? 'FLUX' : img.source}
+            {img.source === 'dalle3' ? 'DALL·E 3' : img.source === 'gemini' ? 'Imagen 3' : img.source === 'huggingface' ? 'FLUX' : img.source}
           </span>
         </div>
       )}
@@ -497,12 +497,14 @@ export default function ImagesPage() {
       const data = await res.json()
 
       if (data.source === 'dalle3') setGeneratingStatus('Generated with DALL·E 3!')
+      else if (data.source === 'gemini') setGeneratingStatus('Generated with Imagen 3!')
       else if (data.source === 'huggingface') setGeneratingStatus('Generated with FLUX AI!')
       else setGeneratingStatus('Generating…')
 
       addImage({ url: data.url, prompt: data.prompt || base, source: data.source, safeSize })
       toast.success(
         data.source === 'dalle3' ? 'Generated with DALL·E 3!' :
+        data.source === 'gemini' ? 'Generated with Imagen 3!' :
         data.source === 'huggingface' ? 'Generated with FLUX AI!' : 'Image generated!'
       )
     } catch (err: unknown) {
@@ -872,7 +874,7 @@ export default function ImagesPage() {
                     {lightbox.timestamp > 0 && <span>{timeAgo(lightbox.timestamp)}</span>}
                     {lightbox.source && lightbox.source !== 'pollinations' && (
                       <span className="px-2 py-0.5 bg-green-50 text-green-600 rounded-full font-medium uppercase text-[10px]">
-                        {lightbox.source === 'dalle3' ? 'DALL·E 3' : lightbox.source === 'huggingface' ? 'FLUX' : lightbox.source}
+                        {lightbox.source === 'dalle3' ? 'DALL·E 3' : lightbox.source === 'gemini' ? 'Imagen 3' : lightbox.source === 'huggingface' ? 'FLUX' : lightbox.source}
                       </span>
                     )}
                   </div>

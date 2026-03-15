@@ -19,18 +19,11 @@ function normalizeSize(width: number, height: number, maxEdge = 512) {
   }
 }
 
-function resolvePollinationsModel(rawModel: unknown) {
-  const normalized = typeof rawModel === 'string' ? rawModel.toLowerCase() : ''
-  if (normalized.includes('anime')) return 'turbo'
-  if (normalized.includes('photo') || normalized.includes('real')) return 'turbo'
-  return 'turbo'
-}
-
 export async function POST(req: NextRequest) {
   const user = await verifyToken(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { prompt, model = 'flux', width = 512, height = 512 } = await req.json()
+  const { prompt, width = 512, height = 512 } = await req.json()
   if (!prompt) return NextResponse.json({ error: 'Missing prompt' }, { status: 400 })
 
   const seed = Math.floor(Math.random() * 999999)
@@ -41,6 +34,7 @@ export async function POST(req: NextRequest) {
   const userKeys = keyDoc.exists ? keyDoc.data() || {} : {}
   const openaiKey = userKeys.openai || process.env.OPENAI_API_KEY
   const hfKey = userKeys.huggingface || process.env.HUGGINGFACE_API_KEY
+  const geminiKey = userKeys.gemini || process.env.GEMINI_API_KEY
 
   // 1. DALL-E 3 — best quality, requires OpenAI key
   if (openaiKey) {
@@ -66,7 +60,7 @@ export async function POST(req: NextRequest) {
         if (userKeys.openai && !isQuotaError) {
           return NextResponse.json({ error: `OpenAI: ${msg}` }, { status: 502 })
         }
-        if (isQuotaError) console.warn('DALL-E 3 quota exceeded, falling back to free generation')
+        if (isQuotaError) console.warn('DALL-E 3 quota exceeded, falling back')
       }
     } catch (err: any) {
       console.error('DALL-E 3 error:', err)
@@ -76,7 +70,46 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 2. HuggingFace FLUX.1-schnell — only when API key configured
+  // 2. Gemini Imagen 3 — free tier via Google AI Studio key
+  if (geminiKey) {
+    try {
+      const ctrl = new AbortController()
+      const timeoutId = setTimeout(() => ctrl.abort(), 28000)
+      const aspectRatio = width > height ? '16:9' : height > width ? '9:16' : '1:1'
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            instances: [{ prompt }],
+            parameters: { sampleCount: 1, aspectRatio },
+          }),
+          signal: ctrl.signal,
+        }
+      )
+      clearTimeout(timeoutId)
+      if (res.ok) {
+        const data = await res.json()
+        const b64 = data.predictions?.[0]?.bytesBase64Encoded
+        const mime = data.predictions?.[0]?.mimeType || 'image/jpeg'
+        if (b64) return NextResponse.json({ url: `data:${mime};base64,${b64}`, prompt, source: 'gemini' })
+      } else {
+        const errData = await res.json().catch(() => ({}))
+        console.error('Gemini Imagen failed:', res.status, errData.error?.message)
+        if (userKeys.gemini) {
+          return NextResponse.json({ error: `Gemini: ${errData.error?.message || res.status}` }, { status: 502 })
+        }
+      }
+    } catch (err: any) {
+      console.error('Gemini Imagen error:', err.message)
+      if (userKeys.gemini) {
+        return NextResponse.json({ error: `Gemini connection failed: ${err.message}` }, { status: 502 })
+      }
+    }
+  }
+
+  // 3. HuggingFace FLUX.1-schnell — only when API key configured
   if (hfKey) try {
     const ctrl = new AbortController()
     const timeoutId = setTimeout(() => ctrl.abort(), 25000)
@@ -84,10 +117,7 @@ export async function POST(req: NextRequest) {
       'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell',
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${hfKey}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${hfKey}` },
         body: JSON.stringify({
           inputs: prompt,
           parameters: { width: safeSize.width, height: safeSize.height, num_inference_steps: 4 },
@@ -110,10 +140,9 @@ export async function POST(req: NextRequest) {
     console.error('HuggingFace fetch error:', err.message)
   }
 
-  // 3. Pollinations — return URL for browser to load directly (user's own IP, not shared Vercel IP).
-  //    DO NOT fetch server-side: Vercel's shared IP gets rate-limited by Pollinations (max 1 queue).
-  const pollinationsModel = resolvePollinationsModel(model)
+  // 4. Pollinations — return URL for browser to load directly (user's own IP, not shared Vercel IP).
+  //    DO NOT fetch server-side: Vercel's shared IP gets rate-limited by Pollinations.
   const encoded = encodeURIComponent(prompt)
-  const pollinationsUrl = `https://image.pollinations.ai/prompt/${encoded}?width=${safeSize.width}&height=${safeSize.height}&seed=${seed}&nologo=true&model=${pollinationsModel}`
+  const pollinationsUrl = `https://image.pollinations.ai/prompt/${encoded}?width=${safeSize.width}&height=${safeSize.height}&seed=${seed}&nologo=true&model=turbo`
   return NextResponse.json({ url: pollinationsUrl, prompt, source: 'pollinations' })
 }
