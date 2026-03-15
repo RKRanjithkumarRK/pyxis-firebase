@@ -151,16 +151,24 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
     return () => { if (elapsedRef.current) clearInterval(elapsedRef.current) }
   }, [src, loaded, errored, isDataUrl])
 
-  // 50s hard timeout — show error so user can retry
+  // At 60s auto-retry with a new seed (silent). At 120s show error.
   useEffect(() => {
     if (isDataUrl || loaded || errored) return
-    timerRef.current = setTimeout(() => {
+    // 60s: silently swap to a new seed — Pollinations may have been slow on this seed
+    const retryTimer = setTimeout(() => {
+      if (mountedRef.current && !loaded) {
+        const newUrl = pollinationsUrl(img.prompt, img.width, img.height)
+        setSrc(newUrl)
+      }
+    }, 60000)
+    // 120s: give up and show error
+    const giveUpTimer = setTimeout(() => {
       if (mountedRef.current && !loaded) {
         setErrored(true)
         onLoadStateChange?.(img.id, false)
       }
-    }, 50000)
-    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+    }, 120000)
+    return () => { clearTimeout(retryTimer); clearTimeout(giveUpTimer) }
   }, [src, loaded, errored, isDataUrl]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLoad = () => {
@@ -172,10 +180,20 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
   }
 
   const handleError = () => {
+    // onError fires on HTTP error (not slow). Retry once with new seed before giving up.
     if (timerRef.current) clearTimeout(timerRef.current)
     if (elapsedRef.current) clearInterval(elapsedRef.current)
-    setErrored(true)
-    onLoadStateChange?.(img.id, false)
+    if (!mountedRef.current) return
+    // Try a different seed immediately on HTTP error
+    const newUrl = pollinationsUrl(img.prompt, img.width, img.height)
+    setSrc(newUrl)
+    // If new seed also fails within 60s, show error
+    timerRef.current = setTimeout(() => {
+      if (mountedRef.current && !loaded) {
+        setErrored(true)
+        onLoadStateChange?.(img.id, false)
+      }
+    }, 60000)
   }
 
   const handleRetry = (e: React.MouseEvent) => {
