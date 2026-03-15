@@ -102,6 +102,19 @@ function timeAgo(ts: number) {
   return `${Math.floor(d / 3600000)}h ago`
 }
 
+// ─── Pollinations Queue ───────────────────────────────────────────────────────
+// Pollinations allows only 1 concurrent request per IP. This module-level
+// semaphore serialises all Pollinations fetches so they run one at a time,
+// preventing the "Queue full" errors that break multiple simultaneous images.
+let _pollFree = true
+const _pollWaiters: Array<() => void> = []
+const acquirePoll = (): Promise<void> =>
+  _pollFree ? ((_pollFree = false), Promise.resolve()) : new Promise(r => _pollWaiters.push(r))
+const releasePoll = () => {
+  const next = _pollWaiters.shift()
+  if (next) next(); else _pollFree = true
+}
+
 // ─── Skeleton Card ────────────────────────────────────────────────────────────
 
 function SkeletonCard() {
@@ -127,97 +140,112 @@ interface ImageCardProps {
   onExpand: (img: GalleryImage) => void
   onDownload: (img: GalleryImage) => void
   onRemix: (prompt: string) => void
+  onResolved?: (id: string, resolvedUrl: string) => void
 }
 
-function ImageCard({ img, onExpand, onDownload, onRemix }: ImageCardProps) {
+function ImageCard({ img, onExpand, onDownload, onRemix, onResolved }: ImageCardProps) {
+  const [src, setSrc] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [errored, setErrored] = useState(false)
   const [retryKey, setRetryKey] = useState(0)
-  const [src, setSrc] = useState(img.url)
-  const [triedProxy, setTriedProxy] = useState(false)
-  const [autoRetries, setAutoRetries] = useState(0)
-  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const blobRef = useRef<string | null>(null)
+  const cancelRef = useRef(false)
 
   useEffect(() => {
-    setSrc(img.url)
+    cancelRef.current = true // cancel any in-flight Pollinations load
     setLoaded(false)
     setErrored(false)
-    setRetryKey(0)
-    setTriedProxy(false)
-    setAutoRetries(0)
-  }, [img.url])
 
-  useEffect(() => () => { if (retryTimer.current) clearTimeout(retryTimer.current) }, [])
+    // Revoke old blob URL only if it's different from the new img.url
+    if (blobRef.current && blobRef.current !== img.url) {
+      URL.revokeObjectURL(blobRef.current)
+      blobRef.current = null
+    }
 
-  const toProxyUrl = (url: string) => `/api/images/proxy?url=${encodeURIComponent(url)}`
+    // data:, blob:, DALL-E, Picsum — render directly, no queue needed
+    if (!img.url.includes('pollinations.ai')) {
+      setSrc(img.url)
+      return
+    }
+
+    // Pollinations URL — queue-based fetch: ensures only 1 runs at a time
+    setSrc(null)
+    cancelRef.current = false
+    let currentUrl = img.url
+
+    const load = async () => {
+      for (let attempt = 0; attempt < 5; attempt++) {
+        if (cancelRef.current) return
+        await acquirePoll()
+        if (cancelRef.current) { releasePoll(); return }
+        try {
+          const res = await fetch(currentUrl)
+          const ct = res.headers.get('content-type') || ''
+          if (res.ok && ct.startsWith('image/')) {
+            const blob = await res.blob()
+            releasePoll()
+            if (blob.size > 500 && !cancelRef.current) {
+              if (blobRef.current) URL.revokeObjectURL(blobRef.current)
+              blobRef.current = URL.createObjectURL(blob)
+              setSrc(blobRef.current)
+              onResolved?.(img.id, blobRef.current)
+              return
+            }
+          } else {
+            releasePoll()
+          }
+        } catch { releasePoll() }
+
+        if (attempt < 4 && !cancelRef.current) {
+          const seed = Math.floor(Math.random() * 999999)
+          currentUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(img.prompt)}?width=${img.width}&height=${img.height}&nologo=true&seed=${seed}&model=flux`
+          await new Promise(r => setTimeout(r, 3000))
+        }
+      }
+      if (!cancelRef.current) setErrored(true)
+    }
+
+    load()
+    return () => { cancelRef.current = true }
+  }, [img.url, img.prompt, img.width, img.height, img.id, retryKey]) // eslint-disable-line
 
   const handleRetry = (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (retryTimer.current) clearTimeout(retryTimer.current)
     setErrored(false)
-    setLoaded(false)
-    setTriedProxy(false)
-    setAutoRetries(0)
-    setSrc(img.url)
     setRetryKey(k => k + 1)
   }
 
-  const handleError = () => {
-    // data: URLs should never fail, but if HuggingFace sent bad data (JSON encoded as image),
-    // fall back to a Pollinations URL rather than permanently erroring.
-    if (src.startsWith('data:')) {
-      const seed = Math.floor(Math.random() * 999999)
-      setSrc(`https://image.pollinations.ai/prompt/${encodeURIComponent(img.prompt)}?width=${img.width}&height=${img.height}&nologo=true&seed=${seed}&model=flux`)
-      setRetryKey(k => k + 1)
-      return
-    }
-    // For Pollinations: auto-retry with new seed (proxy blocked, rate limit 1 concurrent/IP)
-    if (src.includes('pollinations.ai') && autoRetries < 4) {
-      const nextRetry = autoRetries + 1
-      setAutoRetries(nextRetry)
-      setLoaded(false)
-      setErrored(false)
-      retryTimer.current = setTimeout(() => {
-        const seed = Math.floor(Math.random() * 999999)
-        const newSrc = `https://image.pollinations.ai/prompt/${encodeURIComponent(img.prompt)}?width=${img.width}&height=${img.height}&nologo=true&seed=${seed}&model=flux`
-        setSrc(newSrc)
-        setRetryKey(k => k + 1)
-      }, 15000)
-      return
-    }
-    // For DALL-E / other external URLs: try proxy once
-    if (!triedProxy && !img.url.startsWith('/api/images/proxy') && !src.includes('pollinations.ai')) {
-      setTriedProxy(true)
-      setLoaded(false)
-      setErrored(false)
-      setSrc(toProxyUrl(img.url))
-      return
-    }
-    setErrored(true)
-  }
+  // Resolved URL to use for expand/download actions (blob or original)
+  const resolvedImg = src ? { ...img, url: src } : img
 
   return (
     <div
       className="break-inside-avoid mb-4 group relative rounded-2xl overflow-hidden bg-surface-muted shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer"
       style={{ transform: 'translateZ(0)' }}
     >
-      {!loaded && !errored && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-surface-hover to-surface-muted animate-pulse" style={{ minHeight: 200 }}>
+      {/* Loading state */}
+      {!src && !errored && (
+        <div className="flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-surface-hover to-surface-muted animate-pulse" style={{ minHeight: 200 }}>
           <Loader2 className="w-5 h-5 text-muted animate-spin" />
-          <span className="text-muted text-[10px]">{autoRetries > 0 ? `Retrying (${autoRetries}/4)…` : src.startsWith('data:') ? 'Rendering…' : 'Generating…'}</span>
+          <span className="text-muted text-[10px]">Generating…</span>
         </div>
       )}
-      {!errored ? (
+
+      {/* Image */}
+      {src && !errored && (
         <img
-          key={`${retryKey}-${src}`}
+          key={src}
           src={src}
           alt={img.prompt}
           onLoad={() => setLoaded(true)}
-          onError={handleError}
+          onError={() => setErrored(true)}
           className={`w-full object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
           loading="lazy"
         />
-      ) : (
+      )}
+
+      {/* Error state */}
+      {errored && (
         <div className="w-full h-48 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-surface-muted to-bg">
           <div className="w-10 h-10 rounded-full bg-surface-hover flex items-center justify-center">
             <ImageIcon className="w-4 h-4 text-muted" />
@@ -232,45 +260,43 @@ function ImageCard({ img, onExpand, onDownload, onRemix }: ImageCardProps) {
         </div>
       )}
 
-      {/* Hover overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-        {/* Action buttons top-right */}
-        <div className="absolute top-3 right-3 flex gap-2">
-          <button
-            onClick={(e) => { e.stopPropagation(); onExpand(img) }}
-            className="w-8 h-8 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg flex items-center justify-center transition-all"
-            title="Expand"
-          >
-            <Maximize2 className="w-3.5 h-3.5 text-white" />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onDownload(img) }}
-            className="w-8 h-8 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg flex items-center justify-center transition-all"
-            title="Download"
-          >
-            <Download className="w-3.5 h-3.5 text-white" />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onRemix(img.prompt) }}
-            className="w-8 h-8 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg flex items-center justify-center transition-all"
-            title="Remix"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-white" />
-          </button>
+      {/* Hover overlay — only shown when image is loaded */}
+      {src && loaded && (
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <div className="absolute top-3 right-3 flex gap-2">
+            <button
+              onClick={(e) => { e.stopPropagation(); onExpand(resolvedImg) }}
+              className="w-8 h-8 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg flex items-center justify-center transition-all"
+              title="Expand"
+            >
+              <Maximize2 className="w-3.5 h-3.5 text-white" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDownload(resolvedImg) }}
+              className="w-8 h-8 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg flex items-center justify-center transition-all"
+              title="Download"
+            >
+              <Download className="w-3.5 h-3.5 text-white" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onRemix(img.prompt) }}
+              className="w-8 h-8 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg flex items-center justify-center transition-all"
+              title="Remix"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-white" />
+            </button>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 p-3">
+            <p className="text-white text-xs leading-snug line-clamp-2 font-medium">{img.prompt}</p>
+            {img.timestamp > 0 && (
+              <p className="text-white/50 text-[10px] mt-1 flex items-center gap-1">
+                <Clock className="w-2.5 h-2.5" /> {timeAgo(img.timestamp)}
+              </p>
+            )}
+          </div>
         </div>
+      )}
 
-        {/* Prompt bottom */}
-        <div className="absolute bottom-0 left-0 right-0 p-3">
-          <p className="text-white text-xs leading-snug line-clamp-2 font-medium">{img.prompt}</p>
-          {img.timestamp > 0 && (
-            <p className="text-white/50 text-[10px] mt-1 flex items-center gap-1">
-              <Clock className="w-2.5 h-2.5" /> {timeAgo(img.timestamp)}
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* New badge */}
       {img.isNew && (
         <div className="absolute top-3 left-3">
           <span className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-pink-500 text-white text-[10px] font-semibold rounded-full shadow-lg">
@@ -282,41 +308,20 @@ function ImageCard({ img, onExpand, onDownload, onRemix }: ImageCardProps) {
   )
 }
 
-// ─── Lightbox Image (with proxy fallback) ────────────────────────────────────
+// ─── Lightbox Image ───────────────────────────────────────────────────────────
+// The lightbox receives the already-resolved URL (blob: or data:) from the
+// ImageCard via onResolved, so no retry logic is needed here.
 
 function LightboxImage({ url, prompt }: { url: string; prompt: string }) {
   const [src, setSrc] = useState(url)
-  const [retryKey, setRetryKey] = useState(0)
-  const [retries, setRetries] = useState(0)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => { setSrc(url); setRetryKey(0); setRetries(0) }, [url])
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
+  useEffect(() => setSrc(url), [url])
   return (
     <img
-      key={`lb-${retryKey}`}
       src={src}
       alt={prompt}
       onError={() => {
-        if (src.startsWith('data:')) {
-          // Bad HF response encoded as data URL — fall back to Pollinations
-          const seed = Math.floor(Math.random() * 999999)
-          setSrc(`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&nologo=true&seed=${seed}&model=flux`)
-          setRetryKey(k => k + 1)
-          return
-        }
-        // For Pollinations: retry with new seed
-        if (src.includes('pollinations.ai') && retries < 4) {
-          const next = retries + 1
-          setRetries(next)
-          timer.current = setTimeout(() => {
-            const seed = Math.floor(Math.random() * 999999)
-            setSrc(`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&nologo=true&seed=${seed}&model=flux`)
-            setRetryKey(k => k + 1)
-          }, 15000)
-          return
-        }
-        // For DALL-E / other URLs, try proxy once
-        if (!src.startsWith('/api/images/proxy') && !src.includes('pollinations.ai')) {
+        // Only try proxy for DALL-E / external CDN URLs
+        if (!src.startsWith('blob:') && !src.startsWith('data:') && !src.startsWith('/api/images/proxy') && !src.includes('pollinations.ai')) {
           setSrc(`/api/images/proxy?url=${encodeURIComponent(url)}`)
         }
       }}
@@ -512,12 +517,22 @@ export default function ImagesPage() {
     }
   }, [prompt, generating, selectedStyle, selectedRatio, selectedModel, uploadedImage, getToken])
 
+  const handleResolved = useCallback((id: string, resolvedUrl: string) => {
+    setGeneratedImages(prev => prev.map(img => img.id === id ? { ...img, url: resolvedUrl } : img))
+    setHistory(prev => prev.map(img => img.id === id ? { ...img, url: resolvedUrl } : img))
+    setLightbox(prev => prev?.id === id ? { ...prev, url: resolvedUrl } : prev)
+  }, [])
+
   const handleDownload = async (img: GalleryImage) => {
     const slug = img.prompt.slice(0, 24).replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
     const filename = `pyxis-${slug}.png`
     try {
       let blob: Blob
-      if (img.url.startsWith('data:')) {
+      if (img.url.startsWith('blob:')) {
+        // Already a resolved blob URL — just re-fetch it
+        const res = await fetch(img.url)
+        blob = await res.blob()
+      } else if (img.url.startsWith('data:')) {
         const [header, b64] = img.url.split(',')
         const mime = header.match(/:(.*?);/)?.[1] || 'image/png'
         const binary = atob(b64)
@@ -525,12 +540,10 @@ export default function ImagesPage() {
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
         blob = new Blob([bytes], { type: mime })
       } else if (img.url.includes('pollinations.ai')) {
-        // Pollinations blocks server-side fetches (Vercel IPs) — open directly in new tab
         window.open(img.url, '_blank')
         toast.success('Opened in new tab — right-click to save')
         return
       } else {
-        // For other URLs (e.g. DALL-E cdn.openai.com), use proxy
         const controller = new AbortController()
         const timer = setTimeout(() => controller.abort(), 20000)
         try {
@@ -784,6 +797,7 @@ export default function ImagesPage() {
                 onExpand={setLightbox}
                 onDownload={handleDownload}
                 onRemix={handleRemix}
+                onResolved={handleResolved}
               />
             ))}
           </div>
