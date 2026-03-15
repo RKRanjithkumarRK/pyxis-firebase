@@ -127,6 +127,7 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
   const loadedRef = useRef(false)   // mirrors `loaded` state — safe to read in timer closures
   const retryCountRef = useRef(0)
   const startTimeRef = useRef(Date.now())
+  const srcRef = useRef(img.url)    // tracks current src without stale closure issues
   const isDataUrl = img.url.startsWith('data:') || img.url.startsWith('blob:')
 
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false } }, [])
@@ -134,6 +135,7 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
   // If it's a data/blob URL, it's already loaded — show immediately
   useEffect(() => {
     if (isDataUrl) { loadedRef.current = true; setLoaded(true); return }
+    srcRef.current = img.url
     setSrc(img.url)
     loadedRef.current = false
     setLoaded(false)
@@ -160,11 +162,14 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
   // Use loadedRef (not stale closure `loaded`) so they don't fire after successful load.
   useEffect(() => {
     if (isDataUrl) return
-    // 45s: silently swap to a new seed (Pollinations slow for this seed)
+    // 45s: same Pollinations seed (may be cached by now) — just bust browser cache to re-fetch
     const retryTimer = setTimeout(() => {
       if (mountedRef.current && !loadedRef.current) {
         retryCountRef.current += 1
-        setSrc(pollinationsUrl(img.prompt, img.width, img.height))
+        const base = srcRef.current.split('&t=')[0]
+        const url = `${base}&t=${Date.now()}`
+        srcRef.current = url
+        setSrc(url)
       }
     }, 45000)
     // 90s: give up
@@ -188,9 +193,17 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
   const handleError = () => {
     if (!mountedRef.current || loadedRef.current) return
     retryCountRef.current += 1
-    // Allow up to 3 retries on HTTP error, then give up immediately
-    if (retryCountRef.current <= 3) {
-      setSrc(pollinationsUrl(img.prompt, img.width, img.height))
+    if (retryCountRef.current <= 2) {
+      // Same Pollinations seed — may be cached now. Just bust browser cache to re-fetch.
+      const base = srcRef.current.split('&t=')[0]
+      const url = `${base}&t=${Date.now()}`
+      srcRef.current = url
+      setSrc(url)
+    } else if (retryCountRef.current === 3) {
+      // 3rd retry: fresh seed in case this one is permanently stuck
+      const url = pollinationsUrl(img.prompt, img.width, img.height)
+      srcRef.current = url
+      setSrc(url)
     } else {
       if (elapsedRef.current) clearInterval(elapsedRef.current)
       setErrored(true)
@@ -204,6 +217,7 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
     setLoaded(false)
     onLoadStateChange?.(img.id, true)
     const newUrl = pollinationsUrl(img.prompt, img.width, img.height)
+    srcRef.current = newUrl
     setSrc(newUrl)
   }
 
