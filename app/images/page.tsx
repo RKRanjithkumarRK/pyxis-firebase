@@ -174,7 +174,7 @@ function ImageCard({ img, onExpand, onDownload, onRemix }: ImageCardProps) {
         const newSrc = `https://image.pollinations.ai/prompt/${encodeURIComponent(img.prompt)}?width=${img.width}&height=${img.height}&nologo=true&seed=${seed}&model=flux`
         setSrc(newSrc)
         setRetryKey(k => k + 1)
-      }, 3000 * nextRetry)
+      }, 25000) // 25s flat — lets Pollinations queue fully clear between attempts
       return
     }
     // For other URLs (DALL-E etc), try proxy once
@@ -196,7 +196,7 @@ function ImageCard({ img, onExpand, onDownload, onRemix }: ImageCardProps) {
       {!loaded && !errored && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-surface-hover to-surface-muted animate-pulse" style={{ minHeight: 200 }}>
           <Loader2 className="w-5 h-5 text-muted animate-spin" />
-          <span className="text-muted text-[10px]">{autoRetries > 0 ? `Retrying… (${autoRetries}/4)` : 'Generating…'}</span>
+          <span className="text-muted text-[10px]">{autoRetries > 0 ? `Queue busy — retrying (${autoRetries}/4)` : 'Generating…'}</span>
         </div>
       )}
       {!errored ? (
@@ -342,11 +342,13 @@ export default function ImagesPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const modelDropdownRef = useRef<HTMLDivElement>(null)
 
-  // Load example images on mount
+  // Load example images on mount — use Picsum (reliable CDN, no rate limits)
+  // Pollinations allows only 1 concurrent request/IP; using it for examples would
+  // fill the queue and block actual generation requests.
   useEffect(() => {
     const examples: GalleryImage[] = EXAMPLE_PROMPTS.map((ep, i) => ({
       id: `example-${i}`,
-      url: pollinationsUrl(ep.prompt, ep.w, ep.h),
+      url: `https://picsum.photos/seed/${i + 20}/${ep.w}/${ep.h}`,
       prompt: ep.prompt,
       style: 'Default',
       timestamp: 0,
