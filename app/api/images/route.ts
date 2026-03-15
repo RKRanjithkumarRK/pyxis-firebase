@@ -91,13 +91,22 @@ export async function POST(req: NextRequest) {
     clearTimeout(timeoutId)
 
     if (hfRes.ok) {
-      const contentType = hfRes.headers.get('content-type') || 'image/jpeg'
-      const buffer = await hfRes.arrayBuffer()
-      const base64 = Buffer.from(buffer).toString('base64')
-      const dataUrl = `data:${contentType};base64,${base64}`
-      return NextResponse.json({ url: dataUrl, prompt, source: 'huggingface' })
+      const contentType = hfRes.headers.get('content-type') || ''
+      // Only proceed if HuggingFace returned actual image bytes, not a JSON error body
+      // (HF can return status 200 with {"error":"...","estimated_time":20} when loading)
+      if (contentType.startsWith('image/')) {
+        const buffer = await hfRes.arrayBuffer()
+        if (buffer.byteLength > 1000) { // sanity-check: real images are > 1KB
+          const base64 = Buffer.from(buffer).toString('base64')
+          const dataUrl = `data:${contentType};base64,${base64}`
+          return NextResponse.json({ url: dataUrl, prompt, source: 'huggingface' })
+        }
+      }
+      const body = await hfRes.text().catch(() => '')
+      console.error('HuggingFace non-image response:', contentType, body.slice(0, 200))
+    } else {
+      console.error('HuggingFace error:', hfRes.status, await hfRes.text().catch(() => ''))
     }
-    console.error('HuggingFace error:', hfRes.status, await hfRes.text().catch(() => ''))
   } catch (err: any) {
     console.error('HuggingFace fetch error:', err.message)
   }
