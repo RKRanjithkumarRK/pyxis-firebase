@@ -15,6 +15,8 @@ export async function GET(req: NextRequest) {
     'image.pollinations.ai',
     'cdn.openai.com',
     'stablehorde.net',
+    'picsum.photos',
+    'fastly.picsum.photos',
   ])
   // Azure blob storage uses subdomains like <account>.blob.core.windows.net
   const allowedSuffixes = ['.blob.core.windows.net']

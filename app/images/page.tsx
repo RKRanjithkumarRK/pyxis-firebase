@@ -375,7 +375,7 @@ export default function ImagesPage() {
   useEffect(() => {
     const examples: GalleryImage[] = EXAMPLE_PROMPTS.map((ep, i) => ({
       id: `example-${i}`,
-      url: `https://picsum.photos/seed/${i + 20}/${ep.w}/${ep.h}`,
+      url: `/api/images/proxy?url=${encodeURIComponent(`https://picsum.photos/seed/${i + 20}/${ep.w}/${ep.h}`)}`,
       prompt: ep.prompt,
       style: 'Default',
       timestamp: 0,
