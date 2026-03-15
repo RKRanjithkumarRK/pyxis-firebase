@@ -140,9 +140,9 @@ export async function POST(req: NextRequest) {
     console.error('HuggingFace fetch error:', err.message)
   }
 
-  // 4. Pollinations — return URL for browser to load directly (user's own IP, not shared Vercel IP).
-  //    DO NOT fetch server-side: Vercel's shared IP gets rate-limited by Pollinations.
-  const encoded = encodeURIComponent(prompt)
-  const pollinationsUrl = `https://image.pollinations.ai/prompt/${encoded}?width=${safeSize.width}&height=${safeSize.height}&seed=${seed}&nologo=true&model=turbo`
-  return NextResponse.json({ url: pollinationsUrl, prompt, source: 'pollinations' })
+  // 4. Pollinations — proxied through /api/images/proxy so ad blockers (Brave Shields etc.)
+  //    don't block the image.pollinations.ai domain in the browser.
+  const rawPollinations = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${safeSize.width}&height=${safeSize.height}&seed=${seed}&nologo=true&model=turbo`
+  const proxyUrl = `/api/images/proxy?url=${encodeURIComponent(rawPollinations)}`
+  return NextResponse.json({ url: proxyUrl, prompt, source: 'pollinations' })
 }

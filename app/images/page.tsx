@@ -80,7 +80,9 @@ const EXAMPLE_PROMPTS = [
 
 function pollinationsUrl(prompt: string, w: number, h: number) {
   const seed = Math.floor(Math.random() * 999999)
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${h}&nologo=true&model=turbo&seed=${seed}`
+  const raw = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${h}&nologo=true&model=turbo&seed=${seed}`
+  // Route through server proxy so ad blockers (Brave Shields etc.) don't block image.pollinations.ai
+  return `/api/images/proxy?url=${encodeURIComponent(raw)}`
 }
 
 function clampSize(width: number, height: number, maxEdge = 512) {
