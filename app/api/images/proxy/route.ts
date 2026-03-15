@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+export const maxDuration = 30
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const url = searchParams.get('url')
@@ -33,9 +35,13 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const ctrl = new AbortController()
+    const timeoutId = setTimeout(() => ctrl.abort(), 25000)
     const res = await fetch(url, {
+      signal: ctrl.signal,
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Pyxis/1.0)' },
     })
+    clearTimeout(timeoutId)
     if (!res.ok) throw new Error(`Upstream error ${res.status}`)
 
     const contentType = res.headers.get('content-type') || 'image/png'

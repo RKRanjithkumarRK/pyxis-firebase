@@ -368,7 +368,8 @@ export default function ImagesPage() {
       if (fallbackUsed) return
       fallbackUsed = true
       const seed = Math.floor(Math.random() * 999999)
-      const url = pollinationsUrl(finalPrompt, safeSize.width, safeSize.height, seed)
+      const directUrl = pollinationsUrl(finalPrompt, safeSize.width, safeSize.height, seed)
+      const url = `/api/images/proxy?url=${encodeURIComponent(directUrl)}`
       const newImg: GalleryImage = {
         id: `gen-${Date.now()}`,
         url,
@@ -471,7 +472,10 @@ export default function ImagesPage() {
         const controller = new AbortController()
         const timer = setTimeout(() => controller.abort(), 20000)
         try {
-          const res = await fetch('/api/images/proxy?url=' + encodeURIComponent(img.url), { signal: controller.signal })
+          const fetchUrl = img.url.startsWith('/api/images/proxy')
+            ? img.url
+            : '/api/images/proxy?url=' + encodeURIComponent(img.url)
+          const res = await fetch(fetchUrl, { signal: controller.signal })
           clearTimeout(timer)
           if (!res.ok) throw new Error('proxy failed')
           blob = await res.blob()
