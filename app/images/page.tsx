@@ -62,6 +62,7 @@ const QUALITY_OPTIONS = [
   { id: 'hd', label: 'HD', desc: 'Best' },
 ]
 
+const FREE_IMAGE_ONLY = true
 const HORDE_API_BASE = 'https://aihorde.net/api/v2'
 const HORDE_POLL_INTERVAL = 2500
 const HORDE_MAX_WAIT_MS = 120000
@@ -562,6 +563,13 @@ export default function ImagesPage() {
         const queuedImg = addImage({ url: '', prompt: base, source: 'aihorde', safeSize, jobId: hordeJobId })
         toast.success('Queued with AI Horde…')
         void pollHordeJob(hordeJobId, queuedImg.id)
+        return
+      }
+
+      if (FREE_IMAGE_ONLY) {
+        const url = pollinationsUrl(finalPrompt, safeSize.width, safeSize.height)
+        addImage({ url, prompt: base, source: 'pollinations', safeSize })
+        toast.success('Generating image (free mode)…')
         return
       }
 
