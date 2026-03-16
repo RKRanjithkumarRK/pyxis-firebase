@@ -28,25 +28,73 @@ function normalizeSize(width: number, height: number, maxEdge = 1024) {
   }
 }
 
-async function geminiImage(prompt: string, key: string): Promise<{ url: string; source: 'gemini' }> {
+function openaiSize(width: number, height: number) {
+  if (width === height) return '1024x1024'
+  return width > height ? '1536x1024' : '1024x1536'
+}
+
+async function openaiImage(
+  prompt: string,
+  key: string,
+  width: number,
+  height: number
+): Promise<{ url: string; source: 'openai' }> {
+  const size = openaiSize(width, height)
+  const ctrl = new AbortController()
+  const tid = setTimeout(() => ctrl.abort(), 20000)
+  try {
+    const res = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'gpt-image-1', prompt, n: 1, size }),
+      signal: ctrl.signal,
+    })
+    clearTimeout(tid)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+    const b64 = data.data?.[0]?.b64_json
+    if (!b64) throw new Error('no_b64')
+    return { url: `data:image/png;base64,${b64}`, source: 'openai' }
+  } catch (err) {
+    clearTimeout(tid)
+    throw err
+  }
+}
+
+function imagenAspectRatio(width: number, height: number) {
+  if (width === height) return '1:1'
+  const ratio = width / height
+  if (ratio >= 1.6) return '16:9'
+  if (ratio >= 1.2) return '4:3'
+  if (ratio <= 0.62) return '9:16'
+  if (ratio <= 0.85) return '3:4'
+  return '1:1'
+}
+
+async function imagenImage(
+  prompt: string,
+  key: string,
+  width: number,
+  height: number
+): Promise<{ url: string; source: 'imagen' }> {
   const models = [
-    'gemini-2.0-flash-exp-image-generation',
-    'gemini-2.0-flash-exp',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
+    'imagen-4.0-fast-generate-001',
+    'imagen-4.0-generate-001',
+    'imagen-3.0-generate-002',
   ]
+  const aspectRatio = imagenAspectRatio(width, height)
   for (const model of models) {
     const ctrl = new AbortController()
-    const tid = setTimeout(() => ctrl.abort(), 5000)
+    const tid = setTimeout(() => ctrl.abort(), 18000)
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+            instances: [{ prompt }],
+            parameters: { sampleCount: 1, aspectRatio },
           }),
           signal: ctrl.signal,
         }
@@ -57,82 +105,31 @@ async function geminiImage(prompt: string, key: string): Promise<{ url: string; 
         throw new Error(`HTTP ${res.status}`)
       }
       const data = await res.json()
-      const imgPart = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData?.data)
-      if (imgPart?.inlineData) {
-        const { mimeType, data: b64 } = imgPart.inlineData
-        console.log(`Gemini success: ${model}`)
-        return { url: `data:${mimeType};base64,${b64}`, source: 'gemini' }
-      }
+      const prediction = data.predictions?.[0]
+      const b64 = prediction?.bytesBase64Encoded
+      const mime = prediction?.mimeType || 'image/png'
+      if (!b64) throw new Error('no_b64')
+      return { url: `data:${mime};base64,${b64}`, source: 'imagen' }
     } catch (err: any) {
       clearTimeout(tid)
-      if (err.name === 'AbortError') break // timeout = budget exhausted, stop trying
-      // other error = try next model
+      if (err.name === 'AbortError') break
     }
   }
-  throw new Error('gemini_failed')
+  throw new Error('imagen_failed')
 }
 
-async function dalleImage(
-  prompt: string,
-  key: string,
-  width: number,
-  height: number
-): Promise<{ url: string; source: 'dalle3' }> {
-  const size = width > height ? '1792x1024' : height > width ? '1024x1792' : '1024x1024'
-  const ctrl = new AbortController()
-  const tid = setTimeout(() => ctrl.abort(), 12000)
-  try {
-    const res = await fetch('https://api.openai.com/v1/images/generations', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'dall-e-3', prompt, n: 1, size, response_format: 'url' }),
-      signal: ctrl.signal,
-    })
-    clearTimeout(tid)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const data = await res.json()
-    const url = data.data[0]?.url
-    if (!url) throw new Error('no_url')
-    return { url, source: 'dalle3' }
-  } catch (err) {
-    clearTimeout(tid)
-    throw err
-  }
-}
-
-async function huggingfaceImage(
-  prompt: string,
-  key: string,
-  width: number,
-  height: number
-): Promise<{ url: string; source: 'huggingface' }> {
-  const ctrl = new AbortController()
-  const tid = setTimeout(() => ctrl.abort(), 25000)
-  try {
-    const res = await fetch(
-      'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-        body: JSON.stringify({
-          inputs: prompt,
-          parameters: { width, height, num_inference_steps: 4 },
-        }),
-        signal: ctrl.signal,
-      }
-    )
-    clearTimeout(tid)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const contentType = res.headers.get('content-type') || ''
-    if (!contentType.startsWith('image/')) throw new Error('not_image')
-    const buffer = await res.arrayBuffer()
-    if (buffer.byteLength < 1000) throw new Error('empty_image')
-    const base64 = Buffer.from(buffer).toString('base64')
-    return { url: `data:${contentType};base64,${base64}`, source: 'huggingface' }
-  } catch (err) {
-    clearTimeout(tid)
-    throw err
-  }
+async function huggingfaceImage(prompt: string, key: string): Promise<{ url: string; source: 'huggingface' }> {
+  const { InferenceClient } = await import('@huggingface/inference')
+  const client = new InferenceClient(key)
+  const imageBlob = await client.textToImage({
+    model: 'black-forest-labs/FLUX.1-dev',
+    inputs: prompt,
+  })
+  const contentType = imageBlob.type || 'image/png'
+  const buffer = await imageBlob.arrayBuffer()
+  if (buffer.byteLength < 1000) throw new Error('empty_image')
+  const base64 = Buffer.from(buffer).toString('base64')
+  return { url: `data:${contentType};base64,${base64}`, source: 'huggingface' }
 }
 
 export async function POST(req: NextRequest) {
@@ -153,18 +150,30 @@ export async function POST(req: NextRequest) {
     process.env.GOOGLE_API_KEY_2 ||
     process.env.GOOGLE_API_KEY_3
 
-  // Run all available providers in parallel — first success wins
-  const providers: Promise<{ url: string; source: string }>[] = []
-  if (geminiKey) providers.push(geminiImage(prompt, geminiKey))
-  if (openaiKey) providers.push(dalleImage(prompt, openaiKey, safeSize.width, safeSize.height))
-  if (hfKey) providers.push(huggingfaceImage(prompt, hfKey, safeSize.width, safeSize.height))
-
-  if (providers.length > 0) {
+  if (geminiKey) {
     try {
-      const result = await Promise.any(providers)
+      const result = await imagenImage(prompt, geminiKey, safeSize.width, safeSize.height)
       return NextResponse.json({ url: result.url, prompt, source: result.source })
     } catch {
-      // all providers failed — fall through to Pollinations
+      // try next provider
+    }
+  }
+
+  if (openaiKey) {
+    try {
+      const result = await openaiImage(prompt, openaiKey, safeSize.width, safeSize.height)
+      return NextResponse.json({ url: result.url, prompt, source: result.source })
+    } catch {
+      // try next provider
+    }
+  }
+
+  if (hfKey) {
+    try {
+      const result = await huggingfaceImage(prompt, hfKey)
+      return NextResponse.json({ url: result.url, prompt, source: result.source })
+    } catch {
+      // fall through to Pollinations
     }
   }
 
