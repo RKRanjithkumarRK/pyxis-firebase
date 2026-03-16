@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
   const prefixes: Record<string, string> = {
     openrouter: 'sk-or-',
     openai: 'sk-',
+    huggingface: 'hf_',
   }
   const prefix = prefixes[provider]
   if (prefix && !key.startsWith(prefix)) {
