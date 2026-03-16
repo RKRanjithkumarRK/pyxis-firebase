@@ -580,6 +580,20 @@ export default function ImagesPage() {
         const bytes = new Uint8Array(binary.length)
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
         blob = new Blob([bytes], { type: mime })
+      } else if (img.url.startsWith('/api/')) {
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 20000)
+        try {
+          const res = await fetch(img.url, { signal: controller.signal })
+          clearTimeout(timer)
+          if (!res.ok) throw new Error('local failed')
+          blob = await res.blob()
+        } catch {
+          clearTimeout(timer)
+          window.open(img.url, '_blank')
+          toast.success('Opened in new tab — right-click to save')
+          return
+        }
       } else if (img.url.includes('pollinations.ai')) {
         window.open(img.url, '_blank')
         toast.success('Opened in new tab — right-click to save')
