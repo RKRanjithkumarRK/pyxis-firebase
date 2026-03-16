@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 30
+export const maxDuration = 55
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
@@ -38,10 +38,51 @@ async function fetchBinaryImage(url: string, timeoutMs = 12_000): Promise<Respon
   }
 }
 
+const POLLINATION_MODELS = ['turbo', 'flux']
+
+async function fetchPollinationsImage(prompt: string, width: number, height: number, seed: number) {
+  for (const model of POLLINATION_MODELS) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const url =
+        `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}` +
+        `?seed=${seed}&width=${width}&height=${height}&nologo=true&model=${model}`
+      const timeout = attempt === 0 ? 15_000 : 25_000
+      const res = await fetchBinaryImage(url, timeout)
+      if (res) return res
+      await sleep(1200 + attempt * 800)
+    }
+  }
+  return null
+}
+
+type OpenVerseTag = { name?: string }
+type OpenVerseResult = { url?: string; title?: string; tags?: OpenVerseTag[] }
+
+function scoreOpenVerseResult(result: OpenVerseResult, terms: string[]) {
+  if (!terms.length) return 0
+  const title = (result.title || '').toLowerCase()
+  const tags = (result.tags || []).map(t => t.name || '').join(' ').toLowerCase()
+  let score = 0
+  for (const term of terms) {
+    if (title.includes(term)) score += 3
+    if (tags.includes(term)) score += 2
+  }
+  return score
+}
+
+function extractTerms(prompt: string) {
+  return prompt
+    .toLowerCase()
+    .split(/[^a-z0-9]+/g)
+    .filter(t => t.length >= 4)
+    .slice(0, 6)
+}
+
 async function fetchOpenVerseImage(prompt: string, seed: number): Promise<Response | null> {
   try {
     const corePrompt = prompt.split(',')[0]?.trim()
     if (!corePrompt) return null
+    const terms = extractTerms(corePrompt)
 
     const search = await fetch(
       `https://api.openverse.org/v1/images/?q=${encodeURIComponent(corePrompt)}&page_size=20&license_type=commercial`,
@@ -49,11 +90,16 @@ async function fetchOpenVerseImage(prompt: string, seed: number): Promise<Respon
     )
     if (!search.ok) return null
     const data = await search.json()
-    const results: Array<{ url?: string }> = data?.results ?? []
+    const results: OpenVerseResult[] = data?.results ?? []
     if (!results.length) return null
 
-    const idx = Math.abs(seed) % Math.min(results.length, 20)
-    const picked = results[idx]
+    const scored = results
+      .map((result) => ({ result, score: scoreOpenVerseResult(result, terms) }))
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score)
+
+    if (!scored.length) return null
+    const picked = scored[Math.abs(seed) % Math.min(scored.length, 20)]?.result
     if (!picked?.url) return null
     return fetchBinaryImage(picked.url, 12_000)
   } catch {
@@ -71,28 +117,15 @@ export async function GET(req: NextRequest) {
   if (!prompt) return NextResponse.json({ error: 'Missing prompt' }, { status: 400 })
 
   const safeSize = normalizeSize(width, height)
-  const pollinationsUrl =
-    `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}` +
-    `?seed=${seed}&width=${safeSize.width}&height=${safeSize.height}&nologo=true&model=turbo`
-
-  let res = await fetchBinaryImage(pollinationsUrl, 12_000)
-  if (!res) {
-    await sleep(1500)
-    res = await fetchBinaryImage(pollinationsUrl, 12_000)
-  }
+  let res = await fetchPollinationsImage(prompt, safeSize.width, safeSize.height, seed)
 
   if (!res) {
     res = await fetchOpenVerseImage(prompt, seed)
   }
 
   if (!res) {
-    const picsumUrl = `https://picsum.photos/seed/${seed}/${safeSize.width}/${safeSize.height}`
-    res = await fetchBinaryImage(picsumUrl, 8_000)
-  }
-
-  if (!res) {
     return NextResponse.json(
-      { error: 'Image generation temporarily unavailable. Please try again.' },
+      { error: 'No relevant image available right now. Please try again.' },
       { status: 502 }
     )
   }
