@@ -121,10 +121,19 @@ async function imagenImage(
 async function huggingfaceImage(prompt: string, key: string): Promise<{ url: string; source: 'huggingface' }> {
   const { InferenceClient } = await import('@huggingface/inference')
   const client = new InferenceClient(key)
-  const imageBlob = await client.textToImage({
+  const imageResult = await client.textToImage({
     model: 'black-forest-labs/FLUX.1-dev',
     inputs: prompt,
   })
+
+  if (typeof imageResult === 'string') {
+    if (imageResult.startsWith('data:')) {
+      return { url: imageResult, source: 'huggingface' }
+    }
+    return { url: `data:image/png;base64,${imageResult}`, source: 'huggingface' }
+  }
+
+  const imageBlob = imageResult as Blob
   const contentType = imageBlob.type || 'image/png'
   const buffer = await imageBlob.arrayBuffer()
   if (buffer.byteLength < 1000) throw new Error('empty_image')
