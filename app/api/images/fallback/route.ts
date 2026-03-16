@@ -9,7 +9,7 @@ const HORDE_BASE_URL = 'https://aihorde.net/api/v2'
 const HORDE_DEFAULT_KEY = '0000000000'
 const HORDE_DEFAULT_AGENT = 'pyxis-firebase:1.0:contact@pyxis.local'
 const HORDE_POLL_INTERVAL_MS = 2500
-const HORDE_TIMEOUT_MS = 40_000
+const HORDE_TIMEOUT_MS = 50_000
 
 function normalizeSize(width: number, height: number, maxEdge = 1024) {
   const safeWidth = Number.isFinite(width) && width > 0 ? width : 512
@@ -137,12 +137,18 @@ async function fetchAIHordeImage(prompt: string, width: number, height: number, 
       return null
     }
 
-    const statusRes = await fetch(`${HORDE_BASE_URL}/generate/status/${requestId}`, {
-      headers,
-      signal: AbortSignal.timeout(12_000),
-    })
-    if (!statusRes.ok) return null
-    const statusData = await statusRes.json()
+    let statusData: any = null
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const statusRes = await fetch(`${HORDE_BASE_URL}/generate/status/${requestId}`, {
+        headers,
+        signal: AbortSignal.timeout(12_000),
+      })
+      if (statusRes.ok) {
+        statusData = await statusRes.json()
+        if (statusData?.generations?.length) break
+      }
+      await sleep(1500)
+    }
     const generation = statusData?.generations?.[0]
     const raw = generation?.img || generation?.image || generation?.base64 || generation?.img_base64
     if (!raw) return null
