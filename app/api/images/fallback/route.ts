@@ -117,10 +117,23 @@ export async function GET(req: NextRequest) {
   if (!prompt) return NextResponse.json({ error: 'Missing prompt' }, { status: 400 })
 
   const safeSize = normalizeSize(width, height)
-  let res = await fetchPollinationsImage(prompt, safeSize.width, safeSize.height, seed)
+  const pollinationsTask = fetchPollinationsImage(prompt, safeSize.width, safeSize.height, seed)
+    .then((res) => {
+      if (!res) throw new Error('pollinations_failed')
+      return res
+    })
 
-  if (!res) {
-    res = await fetchOpenVerseImage(prompt, seed)
+  const openverseTask = fetchOpenVerseImage(prompt, seed)
+    .then((res) => {
+      if (!res) throw new Error('openverse_failed')
+      return res
+    })
+
+  let res: Response | null = null
+  try {
+    res = await Promise.any([openverseTask, pollinationsTask])
+  } catch {
+    res = null
   }
 
   if (!res) {
