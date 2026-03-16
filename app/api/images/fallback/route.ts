@@ -5,6 +5,12 @@ export const maxDuration = 55
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
+const HORDE_BASE_URL = 'https://aihorde.net/api/v2'
+const HORDE_DEFAULT_KEY = '0000000000'
+const HORDE_DEFAULT_AGENT = 'pyxis-firebase:1.0:contact@pyxis.local'
+const HORDE_POLL_INTERVAL_MS = 2500
+const HORDE_TIMEOUT_MS = 40_000
+
 function normalizeSize(width: number, height: number, maxEdge = 1024) {
   const safeWidth = Number.isFinite(width) && width > 0 ? width : 512
   const safeHeight = Number.isFinite(height) && height > 0 ? height : 512
@@ -55,54 +61,129 @@ async function fetchPollinationsImage(prompt: string, width: number, height: num
   return null
 }
 
-type OpenVerseTag = { name?: string }
-type OpenVerseResult = { url?: string; title?: string; tags?: OpenVerseTag[] }
+function decodeDataUrl(dataUrl: string) {
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/)
+  if (!match) return null
+  const contentType = match[1] || 'image/webp'
+  const base64 = match[2] || ''
+  if (!base64) return null
+  const buffer = Buffer.from(base64, 'base64')
+  if (buffer.byteLength < 1000) return null
+  return { buffer, contentType }
+}
 
-function scoreOpenVerseResult(result: OpenVerseResult, terms: string[]) {
-  if (!terms.length) return 0
-  const title = (result.title || '').toLowerCase()
-  const tags = (result.tags || []).map(t => t.name || '').join(' ').toLowerCase()
-  let score = 0
-  for (const term of terms) {
-    if (title.includes(term)) score += 3
-    if (tags.includes(term)) score += 2
+function hordeHeaders() {
+  const apiKey = process.env.AI_HORDE_API_KEY?.trim() || HORDE_DEFAULT_KEY
+  const clientAgent = process.env.AI_HORDE_CLIENT_AGENT?.trim() || HORDE_DEFAULT_AGENT
+  return {
+    apikey: apiKey,
+    'Client-Agent': clientAgent,
+    'Content-Type': 'application/json',
   }
-  return score
 }
 
-function extractTerms(prompt: string) {
-  return prompt
-    .toLowerCase()
-    .split(/[^a-z0-9]+/g)
-    .filter(t => t.length >= 4)
-    .slice(0, 6)
-}
+async function fetchAIHordeImage(prompt: string, width: number, height: number, seed: number) {
+  const headers = hordeHeaders()
+  const payload = {
+    prompt,
+    params: {
+      n: 1,
+      width,
+      height,
+      steps: 20,
+      cfg_scale: 7,
+      seed: String(seed),
+      sampler_name: 'k_euler',
+    },
+    nsfw: false,
+    censor_nsfw: true,
+  }
 
-async function fetchOpenVerseImage(prompt: string, seed: number): Promise<Response | null> {
+  let requestId: string | null = null
   try {
-    const corePrompt = prompt.split(',')[0]?.trim()
-    if (!corePrompt) return null
-    const terms = extractTerms(corePrompt)
+    const submit = await fetch(`${HORDE_BASE_URL}/generate/async`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(12_000),
+    })
+    if (!submit.ok) return null
+    const submitData = await submit.json()
+    requestId = submitData?.id ?? null
+    if (!requestId) return null
 
-    const search = await fetch(
-      `https://api.openverse.org/v1/images/?q=${encodeURIComponent(corePrompt)}&page_size=20&license_type=commercial`,
-      { signal: AbortSignal.timeout(8_000), headers: { 'User-Agent': 'Pyxis/1.0' } }
-    )
-    if (!search.ok) return null
-    const data = await search.json()
-    const results: OpenVerseResult[] = data?.results ?? []
-    if (!results.length) return null
+    let finished = false
+    const deadline = Date.now() + HORDE_TIMEOUT_MS
+    while (Date.now() < deadline) {
+      const checkRes = await fetch(`${HORDE_BASE_URL}/generate/check/${requestId}`, {
+        headers,
+        signal: AbortSignal.timeout(8_000),
+      })
+      if (checkRes.ok) {
+        const check = await checkRes.json()
+        const doneFlag = Boolean(check?.done)
+        const finishedCount = Number(check?.finished ?? 0)
+        if (doneFlag || finishedCount >= 1) {
+          finished = true
+          break
+        }
+      }
+      await sleep(HORDE_POLL_INTERVAL_MS)
+    }
 
-    const scored = results
-      .map((result) => ({ result, score: scoreOpenVerseResult(result, terms) }))
-      .filter((entry) => entry.score > 0)
-      .sort((a, b) => b.score - a.score)
+    if (!finished) {
+      await fetch(`${HORDE_BASE_URL}/generate/status/${requestId}`, {
+        method: 'DELETE',
+        headers,
+      }).catch(() => null)
+      return null
+    }
 
-    if (!scored.length) return null
-    const picked = scored[Math.abs(seed) % Math.min(scored.length, 20)]?.result
-    if (!picked?.url) return null
-    return fetchBinaryImage(picked.url, 12_000)
+    const statusRes = await fetch(`${HORDE_BASE_URL}/generate/status/${requestId}`, {
+      headers,
+      signal: AbortSignal.timeout(12_000),
+    })
+    if (!statusRes.ok) return null
+    const statusData = await statusRes.json()
+    const generation = statusData?.generations?.[0]
+    const raw = generation?.img || generation?.image || generation?.base64 || generation?.img_base64
+    if (!raw) return null
+
+    if (typeof raw === 'string' && raw.startsWith('http')) {
+      return fetchBinaryImage(raw, 12_000)
+    }
+
+    if (typeof raw === 'string' && raw.startsWith('data:')) {
+      const decoded = decodeDataUrl(raw)
+      if (!decoded) return null
+      return new Response(decoded.buffer, {
+        status: 200,
+        headers: {
+          'Content-Type': decoded.contentType,
+        },
+      })
+    }
+
+    if (typeof raw === 'string') {
+      const buffer = Buffer.from(raw, 'base64')
+      if (buffer.byteLength < 1000) return null
+      const contentType = generation?.mime_type || generation?.content_type || 'image/webp'
+      return new Response(buffer, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+        },
+      })
+    }
+
+    return null
   } catch {
+    if (requestId) {
+      await fetch(`${HORDE_BASE_URL}/generate/status/${requestId}`, {
+        method: 'DELETE',
+        headers,
+      }).catch(() => null)
+    }
     return null
   }
 }
@@ -116,22 +197,24 @@ export async function GET(req: NextRequest) {
 
   if (!prompt) return NextResponse.json({ error: 'Missing prompt' }, { status: 400 })
 
-  const safeSize = normalizeSize(width, height)
-  const pollinationsTask = fetchPollinationsImage(prompt, safeSize.width, safeSize.height, seed)
+  const pollinationsSize = normalizeSize(width, height)
+  const hordeSize = normalizeSize(width, height, 512)
+
+  const pollinationsTask = fetchPollinationsImage(prompt, pollinationsSize.width, pollinationsSize.height, seed)
     .then((res) => {
       if (!res) throw new Error('pollinations_failed')
       return res
     })
 
-  const openverseTask = fetchOpenVerseImage(prompt, seed)
+  const hordeTask = fetchAIHordeImage(prompt, hordeSize.width, hordeSize.height, seed)
     .then((res) => {
-      if (!res) throw new Error('openverse_failed')
+      if (!res) throw new Error('aihorde_failed')
       return res
     })
 
   let res: Response | null = null
   try {
-    res = await Promise.any([openverseTask, pollinationsTask])
+    res = await Promise.any([hordeTask, pollinationsTask])
   } catch {
     res = null
   }

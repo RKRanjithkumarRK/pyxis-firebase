@@ -158,8 +158,9 @@ export async function POST(req: NextRequest) {
     process.env.GOOGLE_API_KEY ||
     process.env.GOOGLE_API_KEY_2 ||
     process.env.GOOGLE_API_KEY_3
+  const paidProvidersEnabled = process.env.PAID_IMAGE_PROVIDERS_ENABLED === 'true'
 
-  if (geminiKey) {
+  if (paidProvidersEnabled && geminiKey) {
     try {
       const result = await imagenImage(prompt, geminiKey, safeSize.width, safeSize.height)
       return NextResponse.json({ url: result.url, prompt, source: result.source })
@@ -168,7 +169,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  if (openaiKey) {
+  if (paidProvidersEnabled && openaiKey) {
     try {
       const result = await openaiImage(prompt, openaiKey, safeSize.width, safeSize.height)
       return NextResponse.json({ url: result.url, prompt, source: result.source })
@@ -177,7 +178,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  if (hfKey) {
+  if (paidProvidersEnabled && hfKey) {
     try {
       const result = await huggingfaceImage(prompt, hfKey)
       return NextResponse.json({ url: result.url, prompt, source: result.source })
@@ -186,7 +187,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Free fallback (Pollinations -> OpenVerse -> Picsum) served via our own endpoint
+  // Free fallback (AI Horde + Pollinations) served via our own endpoint
   const fallbackUrl = fallbackImageUrl(prompt, safeSize.width, safeSize.height, seed)
   return NextResponse.json({ url: fallbackUrl, prompt, source: 'pollinations' })
 }
