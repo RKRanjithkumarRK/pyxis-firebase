@@ -148,7 +148,13 @@ async function fetchAIHordeImage(prompt: string, width: number, height: number, 
     if (!raw) return null
 
     if (typeof raw === 'string' && raw.startsWith('http')) {
-      return fetchBinaryImage(raw, 12_000)
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: raw,
+          'Cache-Control': 'public, max-age=3600',
+        },
+      })
     }
 
     if (typeof raw === 'string' && raw.startsWith('data:')) {
@@ -222,6 +228,11 @@ export async function GET(req: NextRequest) {
       { error: 'No relevant image available right now. Please try again.' },
       { status: 502 }
     )
+  }
+
+  const location = res.headers.get('location')
+  if (res.status >= 300 && res.status < 400 && location) {
+    return res
   }
 
   const contentType = res.headers.get('content-type') || 'image/jpeg'
