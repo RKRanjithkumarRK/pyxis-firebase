@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth-helper'
-import { adminDb } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 55
@@ -146,12 +145,9 @@ export async function POST(req: NextRequest) {
   const safeSize = normalizeSize(width, height)
   const seed = Math.floor(Math.random() * 999999)
 
-  const keyDoc = await adminDb.doc(`users/${user.uid}/private/apikeys`).get()
-  const userKeys = keyDoc.exists ? keyDoc.data() || {} : {}
-  const openaiKey = userKeys.openai || process.env.OPENAI_API_KEY
-  const hfKey = userKeys.huggingface || process.env.HUGGINGFACE_API_KEY
+  const openaiKey = process.env.OPENAI_API_KEY
+  const hfKey = process.env.HUGGINGFACE_API_KEY
   const geminiKey =
-    userKeys.gemini ||
     process.env.GEMINI_API_KEY ||
     process.env.GOOGLE_API_KEY ||
     process.env.GOOGLE_API_KEY_2 ||

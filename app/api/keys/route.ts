@@ -20,6 +20,10 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { provider, key } = await request.json()
+  const managedProviders = new Set(['openai', 'gemini', 'huggingface'])
+  if (managedProviders.has(provider)) {
+    return NextResponse.json({ error: 'This key is managed automatically by the admin.' }, { status: 403 })
+  }
 
   // Validate key format
   const prefixes: Record<string, string> = {

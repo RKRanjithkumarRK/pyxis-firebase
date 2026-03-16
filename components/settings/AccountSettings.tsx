@@ -9,9 +9,6 @@ export default function AccountSettings() {
   const { user, signOut, getToken } = useAuth()
   const [showKeys, setShowKeys] = useState(false)
   const [openrouterKey, setOpenrouterKey] = useState('')
-  const [openaiKey, setOpenaiKey] = useState('')
-  const [geminiKey, setGeminiKey] = useState('')
-  const [huggingfaceKey, setHuggingfaceKey] = useState('')
   const [saving, setSaving] = useState(false)
   const [configured, setConfigured] = useState<string[]>([])
 
@@ -44,9 +41,6 @@ export default function AccountSettings() {
       if (!res.ok) throw new Error(data.error)
       toast.success(`${provider} key saved`)
       if (provider === 'openrouter') setOpenrouterKey('')
-      if (provider === 'openai') setOpenaiKey('')
-      if (provider === 'gemini') setGeminiKey('')
-      if (provider === 'huggingface') setHuggingfaceKey('')
       loadKeyStatus()
     } catch (err: any) { toast.error(err.message || 'Failed to save key') }
     setSaving(false)
@@ -98,12 +92,12 @@ export default function AccountSettings() {
       </div>
       <div className="h-px bg-border" />
 
-      {/* API Keys */}
+            {/* API Keys */}
       <div className="py-4">
         <div className="flex items-center justify-between mb-3">
           <div>
             <span className="text-sm text-text-primary">API Keys</span>
-            <p className="text-xs text-text-tertiary mt-0.5">Add your own keys to unlock paid models.</p>
+            <p className="text-xs text-text-tertiary mt-0.5">Chat model keys are optional. Image generation is managed automatically.</p>
           </div>
           <button onClick={() => setShowKeys(!showKeys)}
             className="px-4 py-1.5 rounded-lg border border-border text-sm text-text-primary hover:bg-surface-hover transition-colors">
@@ -135,75 +129,6 @@ export default function AccountSettings() {
                 </button>
               </div>
             </div>
-
-            <div className="bg-surface rounded-xl p-4">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-text-primary">OpenAI Key</span>
-                {configured.includes('openai') ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-accent">● Active</span>
-                    <button onClick={() => removeKey('openai')} className="text-danger hover:text-danger/80"><Trash2 size={14} /></button>
-                  </div>
-                ) : <span className="text-xs text-text-tertiary">Not set</span>}
-              </div>
-              <p className="text-xs text-text-tertiary mb-3">Get from platform.openai.com — enables DALL-E 3 image quality upgrade</p>
-              <div className="flex gap-2">
-                <input value={openaiKey} onChange={e => setOpenaiKey(e.target.value)}
-                  placeholder="sk-..."
-                  className="flex-1 bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary outline-none focus:border-accent"
-                />
-                <button onClick={() => saveKey('openai', openaiKey)} disabled={saving || !openaiKey}
-                  className="px-4 py-2 rounded-lg bg-accent hover:bg-accent/90 text-white text-sm disabled:opacity-50">
-                  Save
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-surface rounded-xl p-4">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-text-primary">Gemini / Imagen Key</span>
-                {configured.includes('gemini') ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-accent">● Active</span>
-                    <button onClick={() => removeKey('gemini')} className="text-danger hover:text-danger/80"><Trash2 size={14} /></button>
-                  </div>
-                ) : <span className="text-xs text-text-tertiary">Not set</span>}
-              </div>
-              <p className="text-xs text-text-tertiary mb-3">Get from Google AI Studio — enables fast Gemini/Imagen image generation</p>
-              <div className="flex gap-2">
-                <input value={geminiKey} onChange={e => setGeminiKey(e.target.value)}
-                  placeholder="AIza..."
-                  className="flex-1 bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary outline-none focus:border-accent"
-                />
-                <button onClick={() => saveKey('gemini', geminiKey)} disabled={saving || !geminiKey}
-                  className="px-4 py-2 rounded-lg bg-accent hover:bg-accent/90 text-white text-sm disabled:opacity-50">
-                  Save
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-surface rounded-xl p-4">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-text-primary">Hugging Face Key</span>
-                {configured.includes('huggingface') ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-accent">● Active</span>
-                    <button onClick={() => removeKey('huggingface')} className="text-danger hover:text-danger/80"><Trash2 size={14} /></button>
-                  </div>
-                ) : <span className="text-xs text-text-tertiary">Not set</span>}
-              </div>
-              <p className="text-xs text-text-tertiary mb-3">Get from huggingface.co/settings/tokens — enables FLUX image generation</p>
-              <div className="flex gap-2">
-                <input value={huggingfaceKey} onChange={e => setHuggingfaceKey(e.target.value)}
-                  placeholder="hf_..."
-                  className="flex-1 bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary outline-none focus:border-accent"
-                />
-                <button onClick={() => saveKey('huggingface', huggingfaceKey)} disabled={saving || !huggingfaceKey}
-                  className="px-4 py-2 rounded-lg bg-accent hover:bg-accent/90 text-white text-sm disabled:opacity-50">
-                  Save
-                </button>
-              </div>
-            </div>
           </div>
         )}
       </div>
@@ -218,3 +143,5 @@ export default function AccountSettings() {
     </div>
   )
 }
+
+
