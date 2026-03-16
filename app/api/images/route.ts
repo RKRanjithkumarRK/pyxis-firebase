@@ -150,7 +150,12 @@ export async function POST(req: NextRequest) {
   const userKeys = keyDoc.exists ? keyDoc.data() || {} : {}
   const openaiKey = userKeys.openai || process.env.OPENAI_API_KEY
   const hfKey = userKeys.huggingface || process.env.HUGGINGFACE_API_KEY
-  const geminiKey = userKeys.gemini || process.env.GEMINI_API_KEY
+  const geminiKey =
+    userKeys.gemini ||
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.GOOGLE_API_KEY_2 ||
+    process.env.GOOGLE_API_KEY_3
 
   // Run all available providers in parallel — first success wins
   const providers: Promise<{ url: string; source: string }>[] = []
