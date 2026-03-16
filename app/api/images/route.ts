@@ -4,6 +4,10 @@ import { verifyToken } from '@/lib/auth-helper'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 55
 
+const HORDE_BASE_URL = 'https://aihorde.net/api/v2'
+const HORDE_DEFAULT_KEY = '0000000000'
+const HORDE_DEFAULT_AGENT = 'pyxis-firebase:1.0:contact@pyxis.local'
+
 function fallbackImageUrl(prompt: string, width: number, height: number, seed: number) {
   const params = new URLSearchParams({
     prompt,
@@ -31,6 +35,56 @@ function normalizeSize(width: number, height: number, maxEdge = 1024) {
 function openaiSize(width: number, height: number) {
   if (width === height) return '1024x1024'
   return width > height ? '1536x1024' : '1024x1536'
+}
+
+function hordeHeaders() {
+  const apiKey = process.env.AI_HORDE_API_KEY?.trim() || HORDE_DEFAULT_KEY
+  const clientAgent = process.env.AI_HORDE_CLIENT_AGENT?.trim() || HORDE_DEFAULT_AGENT
+  return {
+    apikey: apiKey,
+    'Client-Agent': clientAgent,
+    'Content-Type': 'application/json',
+  }
+}
+
+async function submitAIHordeJob(
+  prompt: string,
+  width: number,
+  height: number,
+  seed: number
+): Promise<string | null> {
+  const payload = {
+    prompt,
+    params: {
+      n: 1,
+      width,
+      height,
+      steps: 20,
+      cfg_scale: 7,
+      seed: String(seed),
+      sampler_name: 'k_euler',
+    },
+    nsfw: false,
+    censor_nsfw: true,
+  }
+
+  const ctrl = new AbortController()
+  const tid = setTimeout(() => ctrl.abort(), 12_000)
+  try {
+    const res = await fetch(`${HORDE_BASE_URL}/generate/async`, {
+      method: 'POST',
+      headers: hordeHeaders(),
+      body: JSON.stringify(payload),
+      signal: ctrl.signal,
+    })
+    clearTimeout(tid)
+    if (!res.ok) return null
+    const data = await res.json()
+    return data?.id ?? null
+  } catch {
+    clearTimeout(tid)
+    return null
+  }
 }
 
 async function openaiImage(
@@ -187,7 +241,15 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Free fallback (AI Horde + Pollinations) served via our own endpoint
+  if (!paidProvidersEnabled) {
+    const hordeSize = normalizeSize(width, height, 512)
+    const jobId = await submitAIHordeJob(prompt, hordeSize.width, hordeSize.height, seed)
+    if (jobId) {
+      return NextResponse.json({ jobId, prompt, source: 'aihorde' })
+    }
+  }
+
+  // Free fallback (Pollinations) served via our own endpoint
   const fallbackUrl = fallbackImageUrl(prompt, safeSize.width, safeSize.height, seed)
   return NextResponse.json({ url: fallbackUrl, prompt, source: 'pollinations' })
 }

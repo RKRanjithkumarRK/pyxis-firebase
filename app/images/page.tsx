@@ -21,6 +21,7 @@ interface GalleryImage {
   width: number
   height: number
   source?: string
+  jobId?: string
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -60,6 +61,10 @@ const QUALITY_OPTIONS = [
   { id: 'standard', label: 'Standard', desc: 'Balanced' },
   { id: 'hd', label: 'HD', desc: 'Best' },
 ]
+
+const HORDE_API_BASE = 'https://aihorde.net/api/v2'
+const HORDE_POLL_INTERVAL = 2500
+const HORDE_MAX_WAIT_MS = 120000
 
 const EXAMPLE_PROMPTS = [
   { prompt: 'majestic lion golden hour savanna photorealistic 4K', w: 512, h: 512 },
@@ -132,12 +137,22 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
   const retryCountRef = useRef(0)
   const startTimeRef = useRef(Date.now())
   const srcRef = useRef(img.url)    // tracks current src without stale closure issues
-  const isDataUrl = img.url.startsWith('data:') || img.url.startsWith('blob:')
+  const hasUrl = Boolean(img.url)
+  const isDataUrl = hasUrl && (img.url.startsWith('data:') || img.url.startsWith('blob:'))
 
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false } }, [])
 
   // If it's a data/blob URL, it's already loaded — show immediately
   useEffect(() => {
+    if (!hasUrl) {
+      loadedRef.current = false
+      setLoaded(false)
+      setErrored(false)
+      retryCountRef.current = 0
+      startTimeRef.current = Date.now()
+      onLoadStateChange?.(img.id, true)
+      return
+    }
     if (isDataUrl) { loadedRef.current = true; setLoaded(true); return }
     srcRef.current = img.url
     setSrc(img.url)
@@ -148,11 +163,11 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
     startTimeRef.current = Date.now()
     onLoadStateChange?.(img.id, true)
     return () => { if (elapsedRef.current) clearInterval(elapsedRef.current) }
-  }, [img.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [img.id, img.url]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Tick elapsed from start time (not reset on retries)
   useEffect(() => {
-    if (isDataUrl || loaded || errored) {
+    if (!hasUrl || isDataUrl || loaded || errored) {
       if (elapsedRef.current) clearInterval(elapsedRef.current)
       return
     }
@@ -160,12 +175,12 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
       setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000))
     }, 1000)
     return () => { if (elapsedRef.current) clearInterval(elapsedRef.current) }
-  }, [img.id, loaded, errored, isDataUrl]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [img.id, img.url, loaded, errored, isDataUrl]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Timers fire ONCE per image (keyed to img.id, not src).
   // Use loadedRef (not stale closure `loaded`) so they don't fire after successful load.
   useEffect(() => {
-    if (isDataUrl) return
+    if (!hasUrl || isDataUrl) return
     // 45s: same Pollinations seed (may be cached by now) — just bust browser cache to re-fetch
     const retryTimer = setTimeout(() => {
       if (mountedRef.current && !loadedRef.current) {
@@ -184,7 +199,7 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
       }
     }, 90000)
     return () => { clearTimeout(retryTimer); clearTimeout(giveUpTimer) }
-  }, [img.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [img.id, img.url]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLoad = () => {
     if (elapsedRef.current) clearInterval(elapsedRef.current)
@@ -195,7 +210,7 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
   }
 
   const handleError = () => {
-    if (!mountedRef.current || loadedRef.current) return
+    if (!mountedRef.current || loadedRef.current || !src) return
     retryCountRef.current += 1
     if (retryCountRef.current <= 2) {
       // Same Pollinations seed — may be cached now. Just bust browser cache to re-fetch.
@@ -269,7 +284,7 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
       )}
 
       {/* Image */}
-      {!errored && (
+      {!errored && hasUrl && (
         <img
           key={src}
           src={src}
@@ -328,7 +343,7 @@ function ImageCard({ img, onExpand, onDownload, onRemix, onResolved, onLoadState
       {img.source && img.source !== 'pollinations' && loaded && (
         <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
           <span className="px-1.5 py-0.5 bg-black/40 backdrop-blur-sm text-white/70 text-[9px] rounded uppercase tracking-wide">
-            {img.source === 'openai' ? 'OpenAI Image' : img.source === 'dalle3' ? 'DALL·E 3' : img.source === 'imagen' || img.source === 'gemini' ? 'Imagen' : img.source === 'huggingface' ? 'FLUX' : img.source}
+            {img.source === 'openai' ? 'OpenAI Image' : img.source === 'dalle3' ? 'DALL·E 3' : img.source === 'imagen' || img.source === 'gemini' ? 'Imagen' : img.source === 'huggingface' ? 'FLUX' : img.source === 'aihorde' ? 'AI Horde' : img.source}
           </span>
         </div>
       )}
@@ -385,6 +400,85 @@ export default function ImagesPage() {
 
   // History
   const [history, setHistory] = useState<GalleryImage[]>([])
+
+  const handleResolved = useCallback((id: string, resolvedUrl: string) => {
+    setGeneratedImages(prev => prev.map(img => img.id === id ? { ...img, url: resolvedUrl } : img))
+    setHistory(prev => prev.map(img => img.id === id ? { ...img, url: resolvedUrl } : img))
+    setLightbox(prev => prev?.id === id ? { ...prev, url: resolvedUrl } : prev)
+  }, [])
+
+  const submitHordeJob = useCallback(async (jobPrompt: string, width: number, height: number) => {
+    const seed = Math.floor(Math.random() * 999999)
+    const payload = {
+      prompt: jobPrompt,
+      params: {
+        n: 1,
+        width,
+        height,
+        steps: 20,
+        cfg_scale: 7,
+        seed: String(seed),
+        sampler_name: 'k_euler',
+      },
+      nsfw: false,
+      censor_nsfw: true,
+    }
+
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 12_000)
+    try {
+      const res = await fetch(`${HORDE_API_BASE}/generate/async`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: '0000000000',
+          'Client-Agent': 'pyxis-firebase:1.0:web',
+        },
+        body: JSON.stringify(payload),
+        signal: ctrl.signal,
+      })
+      clearTimeout(timer)
+      if (!res.ok) return null
+      const data = await res.json()
+      return data?.id ?? null
+    } catch {
+      clearTimeout(timer)
+      return null
+    }
+  }, [])
+
+  const pollHordeJob = useCallback(async (jobId: string, imageId: string) => {
+    const deadline = Date.now() + HORDE_MAX_WAIT_MS
+    while (Date.now() < deadline) {
+      try {
+        const checkRes = await fetch(`${HORDE_API_BASE}/generate/check/${jobId}`)
+        if (checkRes.ok) {
+          const check = await checkRes.json()
+          const done = Boolean(check?.done) || Number(check?.finished ?? 0) >= 1
+          if (done) {
+            const statusRes = await fetch(`${HORDE_API_BASE}/generate/status/${jobId}`)
+            if (statusRes.ok) {
+              const status = await statusRes.json()
+              const generation = status?.generations?.[0]
+              const raw = generation?.img || generation?.image || generation?.base64 || generation?.img_base64
+              if (typeof raw === 'string') {
+                if (raw.startsWith('http') || raw.startsWith('data:')) {
+                  handleResolved(imageId, raw)
+                  return
+                }
+                handleResolved(imageId, `data:image/webp;base64,${raw}`)
+                return
+              }
+            }
+          }
+        }
+      } catch {
+        // ignore and retry
+      }
+      await new Promise(r => setTimeout(r, HORDE_POLL_INTERVAL))
+    }
+    toast.error('AI Horde is busy right now. Please try again.')
+  }, [handleResolved])
 
   const fileRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -462,6 +556,15 @@ export default function ImagesPage() {
     setGeneratingStatus('Connecting to AI…')
 
     try {
+      const hordeJobId = await submitHordeJob(finalPrompt, safeSize.width, safeSize.height)
+      if (hordeJobId) {
+        setGeneratingStatus('Queued with AI Horde…')
+        const queuedImg = addImage({ url: '', prompt: base, source: 'aihorde', safeSize, jobId: hordeJobId })
+        toast.success('Queued with AI Horde…')
+        void pollHordeJob(hordeJobId, queuedImg.id)
+        return
+      }
+
       let token = await getToken()
       if (!token) {
         await new Promise(r => setTimeout(r, 350))
@@ -519,10 +622,19 @@ export default function ImagesPage() {
 
       const data = await res.json()
 
+      if (data?.jobId) {
+        setGeneratingStatus('Queued with AI Horde…')
+        const queuedImg = addImage({ url: '', prompt: data.prompt || base, source: 'aihorde', safeSize, jobId: data.jobId })
+        toast.success('Queued with AI Horde…')
+        void pollHordeJob(data.jobId, queuedImg.id)
+        return
+      }
+
       if (data.source === 'openai') setGeneratingStatus('Generated with OpenAI Image!')
       else if (data.source === 'dalle3') setGeneratingStatus('Generated with DALL·E 3!')
       else if (data.source === 'imagen' || data.source === 'gemini') setGeneratingStatus('Generated with Imagen!')
       else if (data.source === 'huggingface') setGeneratingStatus('Generated with FLUX AI!')
+      else if (data.source === 'aihorde') setGeneratingStatus('Generated with AI Horde!')
       else setGeneratingStatus('Generating…')
 
       addImage({ url: data.url, prompt: data.prompt || base, source: data.source, safeSize })
@@ -530,7 +642,8 @@ export default function ImagesPage() {
         data.source === 'openai' ? 'Generated with OpenAI Image!' :
         data.source === 'dalle3' ? 'Generated with DALL·E 3!' :
         data.source === 'imagen' || data.source === 'gemini' ? 'Generated with Imagen!' :
-        data.source === 'huggingface' ? 'Generated with FLUX AI!' : 'Image generated!'
+        data.source === 'huggingface' ? 'Generated with FLUX AI!' :
+        data.source === 'aihorde' ? 'Generated with AI Horde!' : 'Image generated!'
       )
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to generate'
@@ -542,9 +655,22 @@ export default function ImagesPage() {
       setUploadedImage(null)
       setUploadedImageName('')
     }
-  }, [prompt, generating, selectedStyle, selectedRatio, selectedModel, uploadedImage, getToken]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [prompt, generating, selectedStyle, selectedRatio, selectedModel, uploadedImage, getToken, pollHordeJob, submitHordeJob]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function addImage({ url, prompt: imgPrompt, source, safeSize }: { url: string; prompt: string; source: string; safeSize: { width: number; height: number } }) {
+  function addImage({
+    url,
+    prompt: imgPrompt,
+    source,
+    safeSize,
+    jobId,
+  }: {
+    url: string
+    prompt: string
+    source: string
+    safeSize: { width: number; height: number }
+    jobId?: string
+  }) {
+    const useSafeSize = source === 'pollinations' || source === 'aihorde'
     const newImg: GalleryImage = {
       id: `gen-${Date.now()}`,
       url,
@@ -553,19 +679,15 @@ export default function ImagesPage() {
       timestamp: Date.now(),
       aspectRatio: selectedRatio.id,
       isNew: true,
-      width: source === 'pollinations' ? safeSize.width : selectedRatio.width,
-      height: source === 'pollinations' ? safeSize.height : selectedRatio.height,
+      width: useSafeSize ? safeSize.width : selectedRatio.width,
+      height: useSafeSize ? safeSize.height : selectedRatio.height,
       source,
+      jobId,
     }
     setGeneratedImages(prev => [newImg, ...prev])
     setHistory(prev => [newImg, ...prev].slice(0, 8))
+    return newImg
   }
-
-  const handleResolved = useCallback((id: string, resolvedUrl: string) => {
-    setGeneratedImages(prev => prev.map(img => img.id === id ? { ...img, url: resolvedUrl } : img))
-    setHistory(prev => prev.map(img => img.id === id ? { ...img, url: resolvedUrl } : img))
-    setLightbox(prev => prev?.id === id ? { ...prev, url: resolvedUrl } : prev)
-  }, [])
 
   const handleDownload = async (img: GalleryImage) => {
     const slug = img.prompt.slice(0, 24).replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
@@ -871,11 +993,18 @@ export default function ImagesPage() {
               {history.map(img => (
                 <button
                   key={img.id}
-                  onClick={() => setLightbox(img)}
+                  onClick={() => img.url && setLightbox(img)}
+                  disabled={!img.url}
                   className="flex-shrink-0 group relative w-16 h-16 rounded-xl overflow-hidden border-2 border-transparent hover:border-purple-400 transition-all"
                   title={img.prompt}
                 >
-                  <img src={img.url} alt={img.prompt} className="w-full h-full object-cover" />
+                  {img.url ? (
+                    <img src={img.url} alt={img.prompt} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-surface-muted text-[10px] text-muted">
+                      Waiting...
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all" />
                 </button>
               ))}
@@ -913,7 +1042,7 @@ export default function ImagesPage() {
                     {lightbox.timestamp > 0 && <span>{timeAgo(lightbox.timestamp)}</span>}
                     {lightbox.source && lightbox.source !== 'pollinations' && (
                       <span className="px-2 py-0.5 bg-green-50 text-green-600 rounded-full font-medium uppercase text-[10px]">
-                        {lightbox.source === 'openai' ? 'OpenAI Image' : lightbox.source === 'dalle3' ? 'DALL·E 3' : lightbox.source === 'imagen' || lightbox.source === 'gemini' ? 'Imagen' : lightbox.source === 'huggingface' ? 'FLUX' : lightbox.source}
+                        {lightbox.source === 'openai' ? 'OpenAI Image' : lightbox.source === 'dalle3' ? 'DALL·E 3' : lightbox.source === 'imagen' || lightbox.source === 'gemini' ? 'Imagen' : lightbox.source === 'huggingface' ? 'FLUX' : lightbox.source === 'aihorde' ? 'AI Horde' : lightbox.source}
                       </span>
                     )}
                   </div>
@@ -940,3 +1069,5 @@ export default function ImagesPage() {
     </div>
   )
 }
+
+
