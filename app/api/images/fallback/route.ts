@@ -8,8 +8,8 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 const HORDE_BASE_URL = 'https://aihorde.net/api/v2'
 const HORDE_DEFAULT_KEY = '0000000000'
 const HORDE_DEFAULT_AGENT = 'pyxis-firebase:1.0:contact@pyxis.local'
-const HORDE_POLL_INTERVAL_MS = 2000
-const HORDE_TIMEOUT_MS = 25_000
+const HORDE_POLL_INTERVAL_MS = 2500
+const HORDE_TIMEOUT_MS = 40_000
 
 function normalizeSize(width: number, height: number, maxEdge = 1024) {
   const safeWidth = Number.isFinite(width) && width > 0 ? width : 512
@@ -51,7 +51,7 @@ async function fetchPollinationsImage(prompt: string, width: number, height: num
     const url =
       `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}` +
       `?seed=${seed}&width=${width}&height=${height}&nologo=true&model=${model}`
-    const timeout = model === POLLINATION_MODELS[0] ? 12_000 : 16_000
+    const timeout = model === POLLINATION_MODELS[0] ? 8_000 : 12_000
     const res = await fetchBinaryImage(url, timeout)
     if (res) return res
     await sleep(600)
@@ -103,7 +103,7 @@ async function fetchAIHordeImage(prompt: string, width: number, height: number, 
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(8_000),
+      signal: AbortSignal.timeout(12_000),
     })
     if (!submit.ok) return null
     const submitData = await submit.json()
@@ -115,7 +115,7 @@ async function fetchAIHordeImage(prompt: string, width: number, height: number, 
     while (Date.now() < deadline) {
       const checkRes = await fetch(`${HORDE_BASE_URL}/generate/check/${requestId}`, {
         headers,
-        signal: AbortSignal.timeout(5_000),
+        signal: AbortSignal.timeout(8_000),
       })
       if (checkRes.ok) {
         const check = await checkRes.json()
@@ -139,7 +139,7 @@ async function fetchAIHordeImage(prompt: string, width: number, height: number, 
 
     const statusRes = await fetch(`${HORDE_BASE_URL}/generate/status/${requestId}`, {
       headers,
-      signal: AbortSignal.timeout(8_000),
+      signal: AbortSignal.timeout(12_000),
     })
     if (!statusRes.ok) return null
     const statusData = await statusRes.json()
