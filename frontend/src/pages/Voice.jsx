@@ -244,7 +244,7 @@ export default function Voice() {
         })
       },
       err => {
-        toast.error(err.message || 'Response failed')
+        toast.error(err.message || 'Response failed', { id: 'voice-api-err' })
         setProcessing(false)
         setActiveIntent(null)
         abortRef.current = null
@@ -334,7 +334,7 @@ export default function Voice() {
         speak(full, afterSpeak)
       },
       err => {
-        toast.error(err.message || 'Response failed')
+        toast.error(err.message || 'Response failed', { id: 'voice-api-err' })
         setProcessing(false)
         abortRef.current = null
       },
@@ -421,7 +421,13 @@ export default function Voice() {
         return
       }
       if (e.error === 'not-allowed') { toast.error('Microphone permission denied.'); return }
-      if (e.error !== 'aborted') toast.error(`Voice error: ${e.error}`)
+      if (e.error === 'network') {
+        // Network errors are transient — show one deduplicated toast and retry
+        toast.error('Speech recognition: network issue', { id: 'voice-network-err', duration: 3000 })
+        if (autoRestartRef.current) setTimeout(() => { if (autoRestartRef.current) startListeningRef.current?.() }, 2000)
+        return
+      }
+      if (e.error !== 'aborted') toast.error(`Voice error: ${e.error}`, { id: 'voice-err' })
     }
 
     recRef.current = rec
@@ -487,7 +493,11 @@ export default function Voice() {
       setInterim('')
       if (e.error === 'no-speech') return
       if (e.error === 'not-allowed') { toast.error('Microphone permission denied.'); return }
-      if (e.error !== 'aborted') toast.error(`Voice error: ${e.error}`)
+      if (e.error === 'network') {
+        toast.error('Speech recognition: network issue', { id: 'voice-network-err', duration: 3000 })
+        return
+      }
+      if (e.error !== 'aborted') toast.error(`Voice error: ${e.error}`, { id: 'voice-err' })
     }
 
     recRef.current = rec
