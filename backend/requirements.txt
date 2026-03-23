@@ -29,6 +29,9 @@ openpyxl==3.1.5
 # File upload support
 python-multipart==0.0.12
 
+# Terminal / PTY support
+ptyprocess==0.7.0
+
 # Environment variables
 python-dotenv==1.0.1
 
