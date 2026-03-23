@@ -71,8 +71,16 @@ function timeLabel(ts) {
   return `${Math.floor(h / 24)}d`
 }
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen = false, onMobileClose = () => {} }) {
   const [open, setOpen]                 = useState(true)
+  const [isDesktop, setIsDesktop]       = useState(() => window.matchMedia('(min-width: 768px)').matches)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)')
+    const handler = e => setIsDesktop(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
   const [showChats, setShowChats]       = useState(true)
   const [convos, setConvos]             = useState([])
   const [projects, setProjects]         = useState([])
@@ -117,19 +125,27 @@ export default function Sidebar() {
     } catch { toast.error('Delete failed') }
   }
 
-  const w = open ? 'w-60' : 'w-16'
-
   return (
     <aside
-      className={`${w} shrink-0 h-screen sticky top-0 flex flex-col transition-all duration-200 overflow-hidden`}
+      className="flex flex-col overflow-hidden"
       style={{
         backgroundColor: 'var(--bg-sidebar)',
         borderRight: '1px solid var(--border-color)',
+        position: isDesktop ? 'sticky' : 'fixed',
+        top: 0,
+        left: 0,
+        height: isDesktop ? '100vh' : '100%',
+        zIndex: isDesktop ? 'auto' : 30,
+        width: isDesktop ? (open ? '240px' : '64px') : '280px',
+        flexShrink: isDesktop ? 0 : 'unset',
+        transform: isDesktop ? 'none' : (mobileOpen ? 'translateX(0)' : 'translateX(-100%)'),
+        transition: 'transform 0.25s ease, width 0.2s ease',
+        boxShadow: (!isDesktop && mobileOpen) ? '4px 0 32px rgba(0,0,0,0.35)' : 'none',
       }}
     >
       {/* ── Header / Logo ─────────────────────────────────────────── */}
       <div
-        className={`flex items-center ${open ? 'justify-between px-3' : 'justify-center'} py-3.5`}
+        className={`flex items-center ${open || !isDesktop ? 'justify-between px-3' : 'justify-center'} py-3.5`}
         style={{ borderBottom: '1px solid var(--border-color)' }}
       >
         {open && (
@@ -154,16 +170,26 @@ export default function Sidebar() {
             </div>
           </div>
         )}
-        <button
-          onClick={() => setOpen(v => !v)}
-          className="p-1.5 rounded-lg transition-colors"
-          style={{ color: 'var(--text-muted)' }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.backgroundColor = 'var(--bg-input)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.backgroundColor = 'transparent' }}
-          title={open ? 'Collapse' : 'Expand'}
-        >
-          {open ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-        </button>
+        {!isDesktop ? (
+          <button
+            onClick={onMobileClose}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        ) : (
+          <button
+            onClick={() => setOpen(v => !v)}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.backgroundColor = 'var(--bg-input)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.backgroundColor = 'transparent' }}
+            title={open ? 'Collapse' : 'Expand'}
+          >
+            {open ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+        )}
       </div>
 
       {/* ── New Chat button ────────────────────────────────────────── */}
@@ -399,6 +425,7 @@ export default function Sidebar() {
                   to={to}
                   title={!open ? label : undefined}
                   end={to === '/chat'}
+                  onClick={onMobileClose}
                   className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm transition-all no-underline group"
                   style={({ isActive }) => isActive
                     ? {

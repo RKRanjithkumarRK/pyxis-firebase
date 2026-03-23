@@ -1,9 +1,11 @@
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { Menu, Sparkles } from 'lucide-react'
 import { useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { WorkspaceProvider } from './context/WorkspaceContext'
 import { ImageGenerationProvider, useImageGeneration } from './context/ImageGenerationContext'
+import { TaskProvider } from './context/TaskContext'
 import Sidebar       from './components/Sidebar'
 import Login         from './pages/Login'
 import Hub           from './pages/Hub'
@@ -75,10 +77,39 @@ function AdminRoute({ children }) {
 }
 
 function AppLayout({ children }) {
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   return (
     <div className="flex" style={{ height: '100dvh', overflow: 'hidden', backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)' }}>
-      <Sidebar />
+      {/* Mobile backdrop */}
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 z-20 md:hidden"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+      <Sidebar mobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} />
       <main className="flex-1 min-w-0 overflow-auto" style={{ height: '100%' }}>
+        {/* Mobile top bar */}
+        <div
+          className="md:hidden flex items-center gap-3 px-4 py-3 sticky top-0 z-10"
+          style={{ backgroundColor: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border-color)' }}
+        >
+          <button
+            onClick={() => setMobileSidebarOpen(true)}
+            className="p-1.5 rounded-lg"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))' }}>
+              <Sparkles className="w-3 h-3 text-white" />
+            </div>
+            <span className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>Pyxis One</span>
+          </div>
+        </div>
         {children}
       </main>
     </div>
@@ -86,10 +117,27 @@ function AppLayout({ children }) {
 }
 
 function CodeLayout({ children }) {
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   return (
     <div className="flex" style={{ height: '100dvh', overflow: 'hidden', backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)' }}>
-      <Sidebar />
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 z-20 md:hidden"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+      <Sidebar mobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} />
       <main className="flex-1 min-w-0 overflow-hidden" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <div
+          className="md:hidden flex items-center gap-3 px-4 py-3"
+          style={{ backgroundColor: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}
+        >
+          <button onClick={() => setMobileSidebarOpen(true)} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}>
+            <Menu className="w-5 h-5" />
+          </button>
+          <span className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>Code Studio</span>
+        </div>
         {children}
       </main>
     </div>
@@ -130,6 +178,7 @@ export default function App() {
     <ThemeProvider>
     <WorkspaceProvider>
     <ImageGenerationProvider>
+    <TaskProvider>
     <AppBootstrap>
     <Routes>
       <Route path="/login" element={<Login />} />
@@ -159,6 +208,7 @@ export default function App() {
       <Route path="*" element={<Navigate to="/hub" replace />} />
     </Routes>
     </AppBootstrap>
+    </TaskProvider>
     </ImageGenerationProvider>
     </WorkspaceProvider>
     </ThemeProvider>
