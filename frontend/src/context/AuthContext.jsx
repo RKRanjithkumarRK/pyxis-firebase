@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import {
   GoogleAuthProvider,
   onAuthStateChanged,
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   signInWithCustomToken,
@@ -35,7 +34,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    // Handle redirect result (when popup was blocked and redirect was used instead)
+    // Handle Google redirect result — fires after user returns from Google sign-in page
     getRedirectResult(auth).catch(() => {})
     return onAuthStateChanged(auth, async u => {
       setUser(u)
@@ -45,18 +44,8 @@ export function AuthProvider({ children }) {
     })
   }, [fetchUserMeta])
 
-  const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider()
-    try {
-      return await signInWithPopup(auth, provider)
-    } catch (err) {
-      // Fallback to redirect if popup is blocked
-      if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
-        return signInWithRedirect(auth, provider)
-      }
-      throw err
-    }
-  }
+  const signInWithGoogle = () =>
+    signInWithRedirect(auth, new GoogleAuthProvider())
 
   const signInAsGuest = async () => {
     const res = await fetch('/api/guest', { method: 'POST' })
