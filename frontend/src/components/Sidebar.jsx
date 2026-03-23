@@ -59,9 +59,14 @@ const NAV_GROUPS = [
   },
 ]
 
+function getTs(ts) {
+  if (!ts) return 0
+  return ts._seconds ? ts._seconds * 1000 : new Date(ts).getTime()
+}
+
 function timeLabel(ts) {
-  if (!ts) return ''
-  const ms = ts._seconds ? ts._seconds * 1000 : new Date(ts).getTime()
+  const ms = getTs(ts)
+  if (!ms) return ''
   const diff = Date.now() - ms
   const m = Math.floor(diff / 60000)
   if (m < 1) return 'now'
@@ -69,6 +74,28 @@ function timeLabel(ts) {
   const h = Math.floor(m / 60)
   if (h < 24) return `${h}h`
   return `${Math.floor(h / 24)}d`
+}
+
+function groupConvos(convos) {
+  const now = Date.now()
+  const DAY = 86400000
+  const groups = [
+    { label: 'Today',        items: [] },
+    { label: 'Yesterday',    items: [] },
+    { label: 'Last 7 days',  items: [] },
+    { label: 'Last 30 days', items: [] },
+    { label: 'Older',        items: [] },
+  ]
+  for (const c of convos) {
+    const ms = getTs(c.updatedAt || c.createdAt)
+    const diff = now - ms
+    if (diff < DAY)          groups[0].items.push(c)
+    else if (diff < 2 * DAY) groups[1].items.push(c)
+    else if (diff < 7 * DAY) groups[2].items.push(c)
+    else if (diff < 30 * DAY)groups[3].items.push(c)
+    else                     groups[4].items.push(c)
+  }
+  return groups.filter(g => g.items.length > 0)
 }
 
 export default function Sidebar({ mobileOpen = false, onMobileClose = () => {} }) {
@@ -489,41 +516,54 @@ export default function Sidebar({ mobileOpen = false, onMobileClose = () => {} }
               Recent Chats
             </button>
             {showChats && (
-              <div className="space-y-0.5">
-                {convos.map(c => (
-                  <NavLink
-                    key={c.id}
-                    to={`/chat/${c.id}`}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs group transition-colors no-underline"
-                    style={({ isActive }) => isActive
-                      ? { backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }
-                      : { color: 'var(--text-muted)' }
-                    }
-                    onMouseEnter={e => {
-                      e.currentTarget.style.backgroundColor = 'var(--bg-input)'
-                      e.currentTarget.style.color = 'var(--text-secondary)'
-                    }}
-                    onMouseLeave={e => {
-                      if (!e.currentTarget.classList.contains('active')) {
-                        e.currentTarget.style.backgroundColor = 'transparent'
-                        e.currentTarget.style.color = 'var(--text-muted)'
-                      }
-                    }}
-                  >
-                    <span className="flex-1 truncate">{c.title}</span>
-                    <span
-                      className="shrink-0 text-[10px] group-hover:hidden"
-                      style={{ color: 'var(--text-muted)' }}
+              <div className="space-y-3">
+                {groupConvos(convos).map(group => (
+                  <div key={group.label}>
+                    <p
+                      className="text-[9px] font-bold uppercase tracking-widest px-2 mb-1"
+                      style={{ color: 'var(--text-muted)', opacity: 0.6 }}
                     >
-                      {timeLabel(c.updatedAt)}
-                    </span>
-                    <button
-                      onClick={e => deleteConvo(c.id, e)}
-                      className="hidden group-hover:block shrink-0 p-0.5 hover:text-red-400 transition-colors"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </NavLink>
+                      {group.label}
+                    </p>
+                    <div className="space-y-0.5">
+                      {group.items.map(c => (
+                        <NavLink
+                          key={c.id}
+                          to={`/chat/${c.id}`}
+                          onClick={onMobileClose}
+                          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs group transition-colors no-underline"
+                          style={({ isActive }) => isActive
+                            ? { backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }
+                            : { color: 'var(--text-muted)' }
+                          }
+                          onMouseEnter={e => {
+                            e.currentTarget.style.backgroundColor = 'var(--bg-input)'
+                            e.currentTarget.style.color = 'var(--text-secondary)'
+                          }}
+                          onMouseLeave={e => {
+                            if (!e.currentTarget.classList.contains('active')) {
+                              e.currentTarget.style.backgroundColor = 'transparent'
+                              e.currentTarget.style.color = 'var(--text-muted)'
+                            }
+                          }}
+                        >
+                          <span className="flex-1 truncate">{c.title}</span>
+                          <span
+                            className="shrink-0 text-[10px] group-hover:hidden"
+                            style={{ color: 'var(--text-muted)' }}
+                          >
+                            {timeLabel(c.updatedAt)}
+                          </span>
+                          <button
+                            onClick={e => deleteConvo(c.id, e)}
+                            className="hidden group-hover:block shrink-0 p-0.5 hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </NavLink>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             )}

@@ -3,7 +3,7 @@ import {
   FlaskConical, Search, Loader2, CheckCircle2, Copy, Download,
   ExternalLink, ChevronRight, Sparkles, Globe, RefreshCw,
   ChevronDown, Paperclip, X, FileText, Image, Wand2, Zap,
-  Clock, Trash2,
+  Clock, Trash2, SlidersHorizontal,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -57,6 +57,8 @@ const MODELS = [
 export default function Research() {
   const { activeWorkspace, addArtifact, getContextString } = useWorkspace()
   const [searchParams] = useSearchParams()
+  const [isDesktop, setIsDesktop] = useState(() => window.matchMedia('(min-width: 768px)').matches)
+  const [showMobilePanel, setShowMobilePanel] = useState(false)
   const [query,     setQuery]     = useState('')
   const [depth,     setDepth]     = useState('strategic')
   const [model,     setModel]     = useState('gemini-2.5-flash')
@@ -78,6 +80,13 @@ export default function Research() {
   const abortRef = useRef(null)
 
   const currentModel = MODELS.find(m => m.id === model) || MODELS[0]
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)')
+    const handler = e => setIsDesktop(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   useEffect(() => {
     const voiceQuery = searchParams.get('q')
@@ -197,21 +206,64 @@ export default function Research() {
   }
 
   return (
-    <div className="flex h-screen" style={{ backgroundColor: 'var(--bg-app)' }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: isDesktop ? 'row' : 'column',
+        height: isDesktop ? '100vh' : 'auto',
+        minHeight: isDesktop ? 'unset' : '100vh',
+        backgroundColor: 'var(--bg-app)',
+      }}
+    >
+
+      {/* Mobile controls toggle bar */}
+      {!isDesktop && (
+        <div
+          className="flex items-center gap-2 px-4 py-2.5 sticky top-0 z-20"
+          style={{ backgroundColor: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border-color)' }}
+        >
+          <FlaskConical className="w-4 h-4" style={{ color: 'var(--color-primary-light)' }} />
+          <span className="text-sm font-semibold flex-1" style={{ color: 'var(--text-primary)' }}>Research Studio</span>
+          {stage && stage !== 'done' && (
+            <span className="text-xs" style={{ color: 'var(--color-primary-light)' }}>{STAGE_LABELS[stage]}…</span>
+          )}
+          <button
+            onClick={() => setShowMobilePanel(v => !v)}
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-all"
+            style={{
+              backgroundColor: showMobilePanel ? 'color-mix(in srgb, var(--color-primary) 15%, transparent)' : 'var(--bg-input)',
+              borderColor: showMobilePanel ? 'var(--color-primary)' : 'var(--border-color)',
+              color: showMobilePanel ? 'var(--color-primary-light)' : 'var(--text-muted)',
+            }}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            Controls
+          </button>
+        </div>
+      )}
 
       {/* Left panel */}
       <div
-        className="w-72 shrink-0 flex flex-col"
-        style={{ borderRight: '1px solid var(--border-color)', backgroundColor: 'var(--bg-sidebar)' }}
+        className="flex flex-col"
+        style={{
+          width: isDesktop ? '288px' : '100%',
+          flexShrink: isDesktop ? 0 : 'unset',
+          display: isDesktop ? 'flex' : (showMobilePanel ? 'flex' : 'none'),
+          borderRight: isDesktop ? '1px solid var(--border-color)' : 'none',
+          borderBottom: !isDesktop ? '1px solid var(--border-color)' : 'none',
+          backgroundColor: 'var(--bg-sidebar)',
+        }}
       >
         {/* Scrollable controls area */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 min-h-0">
-        <div className="flex items-center gap-2">
-          <FlaskConical className="w-4 h-4" style={{ color: 'var(--color-primary-light)' }} />
-          <h1 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Research Studio</h1>
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full ml-auto font-medium"
-            style={{ backgroundColor: 'rgba(16,185,129,0.15)', color: '#34d399' }}>Live</span>
-        </div>
+        {isDesktop && (
+          <div className="flex items-center gap-2">
+            <FlaskConical className="w-4 h-4" style={{ color: 'var(--color-primary-light)' }} />
+            <h1 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Research Studio</h1>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full ml-auto font-medium"
+              style={{ backgroundColor: 'rgba(16,185,129,0.15)', color: '#34d399' }}>Live</span>
+          </div>
+        )}
 
         {/* Model selector */}
         <div className="relative" ref={modelPickerRef}>
@@ -450,7 +502,7 @@ export default function Research() {
       </div>
 
       {/* Right: report area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-auto">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'auto', minHeight: isDesktop ? 'unset' : '50vh' }}>
 
         {/* Sources bar */}
         {sources.length > 0 && (

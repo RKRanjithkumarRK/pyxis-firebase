@@ -1,7 +1,7 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   BookOpen, Upload, Send, Loader2, FileText, Trash2,
-  User, Bot, X, File, AlertCircle,
+  User, Bot, X, File, AlertCircle, SlidersHorizontal,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -11,6 +11,8 @@ import toast from 'react-hot-toast'
 
 export default function Rag() {
   const { activeWorkspace, addArtifact, getContextString } = useWorkspace()
+  const [isDesktop, setIsDesktop] = useState(() => window.matchMedia('(min-width: 768px)').matches)
+  const [showMobilePanel, setShowMobilePanel] = useState(false)
   const [docs,      setDocs]      = useState([])   // { name, chars, text }
   const [messages,  setMessages]  = useState([])
   const [input,     setInput]     = useState('')
@@ -20,6 +22,13 @@ export default function Rag() {
   const fileRef   = useRef(null)
   const abortRef  = useRef(null)
   const bottomRef = useRef(null)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)')
+    const handler = e => setIsDesktop(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   const upload = async (files) => {
     setUploading(true)
@@ -96,13 +105,53 @@ export default function Rag() {
   }
 
   return (
-    <div className="flex h-screen" style={{ backgroundColor: 'var(--bg-app)' }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: isDesktop ? 'row' : 'column',
+        height: isDesktop ? '100vh' : 'auto',
+        minHeight: '100vh',
+        backgroundColor: 'var(--bg-app)',
+      }}
+    >
+      {/* Mobile header bar */}
+      {!isDesktop && (
+        <div
+          className="flex items-center gap-2 px-4 py-2.5 sticky top-0 z-20"
+          style={{ backgroundColor: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border-color)' }}
+        >
+          <BookOpen className="w-4 h-4 text-orange-400" />
+          <span className="text-sm font-semibold flex-1" style={{ color: 'var(--text-primary)' }}>Knowledge Mesh</span>
+          <span className="text-xs font-medium px-2 py-0.5 rounded-full"
+            style={{ backgroundColor: 'rgba(234,88,12,0.15)', color: '#fb923c' }}>RAG</span>
+          <button
+            onClick={() => setShowMobilePanel(v => !v)}
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-all ml-1"
+            style={{
+              backgroundColor: showMobilePanel ? 'rgba(234,88,12,0.15)' : 'var(--bg-input)',
+              borderColor: showMobilePanel ? '#ea580c' : 'var(--border-color)',
+              color: showMobilePanel ? '#fb923c' : 'var(--text-muted)',
+            }}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            Docs {docs.length > 0 && `(${docs.length})`}
+          </button>
+        </div>
+      )}
 
       {/* Left: doc panel */}
       <div
-        className="w-72 shrink-0 flex flex-col"
-        style={{ borderRight: '1px solid var(--border-color)', backgroundColor: 'var(--bg-sidebar)' }}
+        className="flex flex-col"
+        style={{
+          width: isDesktop ? '288px' : '100%',
+          flexShrink: isDesktop ? 0 : 'unset',
+          display: isDesktop ? 'flex' : (showMobilePanel ? 'flex' : 'none'),
+          borderRight: isDesktop ? '1px solid var(--border-color)' : 'none',
+          borderBottom: !isDesktop ? '1px solid var(--border-color)' : 'none',
+          backgroundColor: 'var(--bg-sidebar)',
+        }}
       >
+        {isDesktop && (
         <div
           className="p-4 flex items-center gap-2"
           style={{ borderBottom: '1px solid var(--border-color)' }}
@@ -116,6 +165,7 @@ export default function Rag() {
             RAG
           </span>
         </div>
+        )}
 
         {/* Upload zone */}
         <div
@@ -214,7 +264,7 @@ export default function Rag() {
       </div>
 
       {/* Right: chat */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: isDesktop ? 'unset' : '60vh' }}>
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">

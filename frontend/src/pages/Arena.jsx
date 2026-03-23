@@ -225,7 +225,7 @@ export default function Arena() {
     <div className="h-screen flex flex-col" style={{ backgroundColor: 'var(--bg-app)' }}>
 
       {/* ── Header ─────────────────────────────────────────────── */}
-      <div className="px-6 py-4 flex items-center gap-4" style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-sidebar)' }}>
+      <div className="px-4 py-3 flex items-center gap-3 flex-wrap" style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-sidebar)' }}>
         <div className="w-10 h-10 rounded-xl flex items-center justify-center"
           style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}>
           <Swords className="w-5 h-5 text-white" />
@@ -235,7 +235,7 @@ export default function Arena() {
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Battle AI models side-by-side in real-time</p>
         </div>
         {runCount > 0 && (
-          <div className="flex items-center gap-3 text-sm">
+          <div className="hidden sm:flex items-center gap-3 text-sm">
             <div className="text-center px-3 py-1.5 rounded-xl" style={{ backgroundColor: modelAInfo.color + '15', border: `1px solid ${modelAInfo.color}30` }}>
               <div className="font-bold text-base leading-none" style={{ color: modelAInfo.color }}>{rounds.A}</div>
               <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Model A wins</div>
@@ -255,7 +255,7 @@ export default function Arena() {
       <div className="flex-1 overflow-hidden flex flex-col p-4 gap-3">
 
         {/* ── Controls ──────────────────────────────────────────── */}
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-wrap items-end gap-2 md:gap-3">
           {/* Model A */}
           <div className="flex-1 min-w-36">
             <label className="block text-xs font-medium mb-1.5" style={{ color: modelAInfo.color }}>
@@ -322,7 +322,7 @@ export default function Arena() {
         </div>
 
         {/* ── Response Panels ───────────────────────────────────── */}
-        <div className="flex gap-4 flex-1 overflow-hidden min-h-0">
+        <div className="flex flex-col md:flex-row gap-4 flex-1 overflow-hidden min-h-0">
           <ResponsePanel
             side="A"
             modelInfo={modelAInfo}
