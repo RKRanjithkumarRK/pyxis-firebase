@@ -4,6 +4,14 @@
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://ranjith00743-pyxis-one-backend.hf.space/api/:path*"
+    },
+    {
+      "source": "/health",
+      "destination": "https://ranjith00743-pyxis-one-backend.hf.space/health"
+    },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
