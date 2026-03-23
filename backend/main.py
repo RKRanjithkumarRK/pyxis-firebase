@@ -204,7 +204,7 @@ _CORS_ORIGINS = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_CORS_ORIGINS,
-    allow_origin_regex=r"https://pyxis.*\.vercel\.app",
+    allow_origin_regex=r"https://(pyxis.*\.vercel\.app|ranjithkumarRK.*\.hf\.space|.*\.hf\.space)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
