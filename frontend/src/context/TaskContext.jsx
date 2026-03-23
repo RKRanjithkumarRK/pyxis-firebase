@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback } from 'react'
-import { X, CheckCircle } from 'lucide-react'
+import { X, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const TaskContext = createContext(null)
@@ -24,7 +24,7 @@ function TaskBar({ tasks, onDismiss }) {
               style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }}
             />
           ) : (
-            <CheckCircle className="w-4 h-4 shrink-0" style={{ color: '#4ade80' }} />
+            <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: '#4ade80' }} />
           )}
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
