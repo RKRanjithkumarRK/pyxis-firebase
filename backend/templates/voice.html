@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Voice — Pyxis One{% endblock %}
+{% block nav_voice %}active{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-6 py-16 text-center">
+
+  <h1 class="text-2xl font-bold text-white mb-2">Voice AI</h1>
+  <p class="text-zinc-400 text-sm mb-12">Speak naturally — Pyxis listens and responds</p>
+
+  <!-- Mic button -->
+  <div class="relative flex items-center justify-center mb-10">
+    <div id="mic-ring" class="hidden absolute w-32 h-32 rounded-full border-2 border-purple-500/30 animate-ping"></div>
+    <button id="mic-btn" onclick="toggleListen()"
+      class="relative w-24 h-24 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 flex items-center justify-center shadow-lg shadow-purple-900/40 transition transform hover:scale-105 active:scale-95">
+      <svg id="mic-icon" class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Status -->
+  <p id="status" class="text-zinc-400 text-sm mb-8">Click the microphone to start</p>
+
+  <!-- Transcript -->
+  <div id="transcript-box" class="hidden bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 text-left">
+    <p class="text-xs text-zinc-500 mb-2">You said</p>
+    <p id="transcript" class="text-white text-sm"></p>
+  </div>
+
+  <!-- AI Response -->
+  <div id="response-box" class="hidden bg-zinc-900 border border-purple-500/20 rounded-2xl p-4 text-left">
+    <p class="text-xs text-purple-400 mb-2">Pyxis</p>
+    <p id="response" class="text-zinc-100 text-sm message-content"></p>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let recognition = null;
+let listening = false;
+let speaking = false;
+
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+
+function speak(text) {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.rate = 1.05;
+    utt.pitch = 1;
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v => v.name.includes('Google') && v.lang.startsWith('en'));
+    if (preferred) utt.voice = preferred;
+    utt.onend = () => { speaking = false; setStatus('Click to speak again'); };
+    speaking = true;
+    window.speechSynthesis.speak(utt);
+  }
+}
+
+async function processVoice(transcript) {
+  if (!window._token) { setStatus('Sign in to use voice'); return; }
+
+  document.getElementById('transcript-box').classList.remove('hidden');
+  document.getElementById('transcript').textContent = transcript;
+  setStatus('Thinking…');
+
+  try {
+    const res = await window.authFetch('/api/voice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: transcript }),
+    });
+
+    let fullText = '';
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    document.getElementById('response-box').classList.remove('hidden');
+    document.getElementById('response').textContent = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6);
+        if (data === '[DONE]') break;
+        try {
+          const p = JSON.parse(data);
+          if (p.content) { fullText += p.content; document.getElementById('response').textContent = fullText; }
+        } catch {}
+      }
+    }
+
+    setStatus('Speaking…');
+    speak(fullText.replace(/[*#`]/g, '').trim());
+
+  } catch (e) {
+    setStatus('Error: ' + e.message);
+  }
+}
+
+function toggleListen() {
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    setStatus('Speech recognition not supported in this browser');
+    return;
+  }
+  if (listening) { recognition?.stop(); return; }
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = 'en-US';
+  recognition.interimResults = true;
+
+  recognition.onstart = () => {
+    listening = true;
+    setStatus('Listening…');
+    document.getElementById('mic-ring').classList.remove('hidden');
+    document.getElementById('mic-btn').classList.add('from-pink-600', 'to-red-600');
+  };
+
+  recognition.onresult = (e) => {
+    const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+    document.getElementById('transcript-box').classList.remove('hidden');
+    document.getElementById('transcript').textContent = transcript;
+  };
+
+  recognition.onend = () => {
+    listening = false;
+    document.getElementById('mic-ring').classList.add('hidden');
+    document.getElementById('mic-btn').classList.remove('from-pink-600', 'to-red-600');
+    const text = document.getElementById('transcript').textContent.trim();
+    if (text) processVoice(text);
+    else setStatus('No speech detected — try again');
+  };
+
+  recognition.start();
+}
+</script>
+{% endblock %}

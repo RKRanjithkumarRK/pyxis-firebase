@@ -1,0 +1,205 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background-color: var(--bg-app);
+    color: var(--text-primary);
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+  /* CSS Variables */
+  :root {
+    --color-primary:       #7c3aed;
+    --color-primary-hover: #6d28d9;
+    --color-primary-light: #8b5cf6;
+  }
+
+  /* Dark theme (default) */
+  [data-theme="dark"], :root:not([data-theme="light"]) {
+    --bg-app:        #09090b;
+    --bg-sidebar:    #0f0f11;
+    --bg-card:       #18181b;
+    --bg-input:      #27272a;
+    --border-color:  #3f3f46;
+    --text-primary:  #fafafa;
+    --text-secondary:#a1a1aa;
+    --text-muted:    #52525b;
+  }
+
+  /* Light theme */
+  [data-theme="light"] {
+    --bg-app:        #f8fafc;
+    --bg-sidebar:    #f1f5f9;
+    --bg-card:       #ffffff;
+    --bg-input:      #f1f5f9;
+    --border-color:  #e2e8f0;
+    --text-primary:  #0f172a;
+    --text-secondary:#475569;
+    --text-muted:    #94a3b8;
+  }
+}
+
+@layer components {
+  .nav-link {
+    @apply flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors no-underline;
+    color: var(--text-secondary);
+  }
+  .nav-link:hover {
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+  }
+  .nav-link.active {
+    color: var(--color-primary-light);
+    background-color: color-mix(in srgb, var(--color-primary) 15%, transparent);
+  }
+
+  .btn-primary {
+    @apply flex items-center gap-2 text-white text-sm font-medium px-4 py-2 rounded-xl transition-all;
+    background-color: var(--color-primary);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--color-primary-hover);
+  }
+  .btn-primary:disabled {
+    @apply opacity-40 cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply flex items-center gap-2 text-sm px-3 py-2 rounded-lg transition-colors;
+    color: var(--text-secondary);
+  }
+  .btn-ghost:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-input);
+  }
+
+  .input {
+    @apply w-full rounded-xl px-4 py-2.5 text-sm transition-all focus:outline-none;
+    background-color: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+  }
+  .input::placeholder {
+    color: var(--text-muted);
+  }
+  .input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+  }
+
+  .card {
+    @apply rounded-2xl transition-all;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+  }
+
+  /* Glassmorphism card variant */
+  .card-glass {
+    @apply rounded-2xl backdrop-blur-sm;
+    background-color: color-mix(in srgb, var(--bg-card) 80%, transparent);
+    border: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
+    backdrop-filter: blur(12px);
+  }
+
+  /* Surface utilities — theme-aware shorthand classes */
+  .surface       { background-color: var(--bg-card);    border: 1px solid var(--border-color); }
+  .surface-input { background-color: var(--bg-input);   border: 1px solid var(--border-color); }
+  .surface-app   { background-color: var(--bg-app); }
+  .text-dim      { color: var(--text-muted); }
+  .text-base-color { color: var(--text-primary); }
+  .text-secondary-color { color: var(--text-secondary); }
+  .border-base   { border-color: var(--border-color); }
+
+  /* Scrollbar hide utility */
+  .scrollbar-hide { scrollbar-width: none; -ms-overflow-style: none; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+  /* Focus ring using accent color */
+  .focus-accent:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 40%, transparent);
+  }
+}
+
+/* ── Markdown chat content ─────────────────────────────────── */
+.prose-chat h1, .prose-chat h2, .prose-chat h3 {
+  @apply font-semibold mt-3 mb-1;
+  color: var(--text-primary);
+}
+.prose-chat p   { @apply my-1.5 leading-relaxed; color: var(--text-secondary); }
+.prose-chat ul, .prose-chat ol { @apply pl-5 my-1.5; }
+.prose-chat li  { @apply my-0.5; color: var(--text-secondary); }
+.prose-chat pre {
+  @apply rounded-xl p-3 overflow-x-auto my-3 font-mono text-xs;
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-color);
+}
+.prose-chat code { @apply font-mono text-[0.85em]; }
+.prose-chat :not(pre) > code {
+  @apply px-1.5 py-0.5 rounded text-[0.85em] font-mono;
+  background-color: var(--bg-input);
+  color: var(--color-primary-light);
+}
+.prose-chat table { @apply w-full border-collapse my-3; }
+.prose-chat th, .prose-chat td {
+  @apply px-3 py-1.5 text-left text-sm;
+  border: 1px solid var(--border-color);
+}
+.prose-chat th { background-color: var(--bg-input); }
+.prose-chat blockquote {
+  @apply pl-4 my-2;
+  border-left: 2px solid var(--color-primary);
+  color: var(--text-muted);
+}
+.prose-chat a {
+  @apply underline;
+  color: var(--color-primary-light);
+}
+.prose-chat strong { color: var(--text-primary); }
+
+/* ── Typing cursor ──────────────────────────────────────────── */
+.typing-cursor::after {
+  content: '▋';
+  color: var(--color-primary-light);
+  @apply animate-blink;
+}
+
+/* ── Animations ─────────────────────────────────────────────── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+.animate-blink { animation: blink 1s step-end infinite; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fadeIn 0.25s ease forwards; }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in { animation: slideIn 0.2s ease forwards; }
+
+/* ── Sidebar active gradient ────────────────────────────────── */
+.sidebar-active {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-primary) 20%, transparent),
+    color-mix(in srgb, var(--color-primary) 10%, transparent)
+  );
+  color: var(--color-primary-light);
+  border-left: 2px solid var(--color-primary);
+}

@@ -1,16 +1,46 @@
+# Environment
 .env
 .env.local
-node_modules/
-.next/
-.DS_Store
-.vercel
-node_modules
-.env
-.env.local
-.next
-.vercel
 .env.vercel.local
 .env.vercel.prod
-build.log
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build outputs (Next.js)
+.next/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+
+# Logs
+*.log
+backend/backend-restart.log
+backend.log
+
+# Tools
+.vercel
+.DS_Store
 .tmp-review-frames/
 .tmp-qa/
+.tmp/
+.claude/worktrees/
+.clone/
+nexus-one/
+pyxis-firebase/
+find-changes.js
+sync-changes.js
+start-dev.js
+start.bat
+stress-test.js
+tsconfig.tsbuildinfo
+
+# Build artifacts we don't need in git
+backend/alembic.ini

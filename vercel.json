@@ -1,4 +1,9 @@
 {
-  "framework": "nextjs",
-  "regions": ["sin1"]
+  "version": 2,
+  "regions": ["sin1"],
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
