@@ -506,7 +506,8 @@ export default function Chat() {
 
     rec.onerror = (e) => {
       if (e.error === 'not-allowed') toast.error('Microphone permission denied')
-      else if (e.error !== 'no-speech' && e.error !== 'aborted') toast.error(`Voice error: ${e.error}`)
+      else if (e.error === 'network') toast.error('Speech recognition: network issue', { id: 'voice-network-err', duration: 3000 })
+      else if (e.error !== 'no-speech' && e.error !== 'aborted') toast.error(`Voice error: ${e.error}`, { id: 'voice-err' })
       setDictating(false)
     }
 

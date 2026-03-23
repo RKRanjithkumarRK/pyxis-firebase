@@ -9,6 +9,8 @@ import remarkGfm from 'remark-gfm'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 
+const API_BASE = import.meta.env.VITE_API_URL || ''
+
 const MODELS = [
   { id: 'gemini-2.5-flash',                                    label: 'Gemini 2.5 Flash',   provider: 'Google',     color: '#60a5fa' },
   { id: 'gemini-2.0-flash',                                    label: 'Gemini 2.0 Flash',   provider: 'Google',     color: '#93c5fd' },
@@ -150,7 +152,7 @@ export default function Arena() {
     abortRef.current = new AbortController()
 
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ message: prompt, model, history: [], systemPrompt }),

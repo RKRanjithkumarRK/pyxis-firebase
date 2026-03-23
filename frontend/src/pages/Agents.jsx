@@ -101,11 +101,16 @@ function InlineToolImage({ toolCalls }) {
 }
 
 const MODELS = [
-  { id: 'gemini-2.5-flash',   label: 'Gemini 2.5 Flash',  badge: 'Best'  },
-  { id: 'gemini-2.0-flash',   label: 'Gemini 2.0 Flash',  badge: 'Fast'  },
-  { id: 'gemini-2.0-flash-lite', label: 'Gemini Lite',    badge: 'Lite'  },
-  { id: 'liquid/lfm-2.5-1.2b-instruct:free', label: 'LFM 2.5', badge: 'Free' },
-  { id: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3', badge: 'Free' },
+  { id: 'gemini-2.5-flash',              label: 'Gemini 2.5 Flash',       badge: 'Best'   },
+  { id: 'gemini-2.0-flash',              label: 'Gemini 2.0 Flash',       badge: 'Fast'   },
+  { id: 'gemini-2.0-flash-lite',         label: 'Gemini Lite',            badge: 'Lite'   },
+  { id: 'llama-3.3-70b-versatile',       label: 'Llama 3.3 70B',          badge: 'Fast'   },
+  { id: 'llama-3.1-8b-instant',          label: 'Llama 3.1 8B',           badge: 'Instant'},
+  { id: 'llama3.3-70b',                  label: 'Llama 3.3 (Cerebras)',   badge: '2k t/s' },
+  { id: 'gpt-4o-mini',                   label: 'GPT-4o Mini',            badge: 'Smart'  },
+  { id: 'gpt-4o',                        label: 'GPT-4o',                 badge: 'Best'   },
+  { id: 'Meta-Llama-3.3-70B-Instruct',   label: 'Llama 3.3 (SambaNova)', badge: 'Free'   },
+  { id: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3 (OR)', badge: 'Free' },
   { id: 'mistralai/mistral-small-3.1-24b-instruct:free', label: 'Mistral Small', badge: 'Free' },
 ]
 
