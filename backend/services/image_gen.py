@@ -2,9 +2,9 @@
 Image generation service.
 
 Priority:
-  1. Gemini image generation (if gemini_key)
+  1. HuggingFace FLUX.1-schnell (if hf_key — fastest, best quality)
   2. DALL-E 3 via OpenAI (if openai_key)
-  3. HuggingFace SDXL / FLUX (if hf_key)
+  3. Gemini image generation (if gemini_key)
   4. Pollinations.ai — free, instant, no key needed (always available fallback)
 
 AI Horde is NOT used: it queues for 30-90 seconds which is unacceptable UX.

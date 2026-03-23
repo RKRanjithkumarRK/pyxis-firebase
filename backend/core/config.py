@@ -1,5 +1,7 @@
+import os
 from functools import lru_cache
 from pydantic_settings import BaseSettings
+from pydantic import model_validator
 
 
 class Settings(BaseSettings):
@@ -21,8 +23,15 @@ class Settings(BaseSettings):
     openrouter_api_key:  str = ""
     openai_api_key:      str = ""
     anthropic_api_key:   str = ""
-    huggingface_api_key: str = ""
+    huggingface_api_key: str = ""  # Also auto-loaded from HF_TOKEN on HuggingFace Spaces
     judge0_api_key:      str = ""   # RapidAPI key for Judge0 CE (non-Python execution)
+
+    @model_validator(mode='after')
+    def _load_hf_token_fallback(self):
+        """HuggingFace Spaces auto-sets HF_TOKEN — use it if HUGGINGFACE_API_KEY is absent."""
+        if not self.huggingface_api_key:
+            self.huggingface_api_key = os.environ.get('HF_TOKEN', '')
+        return self
 
     # ── Fast Free Providers (add keys for zero rate-limit downtime) ───
     groq_api_key:        str = ""   # Free at console.groq.com — 14,400 RPD, very fast

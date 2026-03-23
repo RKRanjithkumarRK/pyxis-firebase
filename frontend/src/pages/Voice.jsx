@@ -114,15 +114,8 @@ export default function Voice() {
   const modelPickerRef           = useRef(null)
   const startListeningRef        = useRef(null) // holds latest startListeningContinuous to avoid stale closures
 
-  // ── Auto-start continuous listening on mount ───────────────────────────────
-  useEffect(() => {
-    if (!supported) return
-    const timer = setTimeout(() => {
-      if (continuousMode) startListeningContinuous()
-    }, 900)
-    return () => clearTimeout(timer)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  // Auto-start removed — mic only starts on explicit user interaction to avoid
+  // permission error toasts appearing before the user has clicked anything.
 
   // ── Cleanup on unmount ─────────────────────────────────────────────────────
   useEffect(() => () => {
