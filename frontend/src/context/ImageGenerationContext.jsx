@@ -11,6 +11,8 @@ import { createContext, useContext, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 
+const API_BASE = import.meta.env.VITE_API_URL || ''
+
 const ImageGenerationContext = createContext(null)
 
 const LS_HISTORY_KEY = 'pyxis_image_history'
@@ -54,7 +56,7 @@ export function ImageGenerationProvider({ children }) {
 
     try {
       const token = await window.__getAuthToken?.() ?? ''
-      const res = await fetch('/api/images', {
+      const res = await fetch(`${API_BASE}/api/images`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

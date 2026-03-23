@@ -60,7 +60,8 @@ export function AuthProvider({ children }) {
   }
 
   const signInAsGuest = async () => {
-    const res = await fetch('/api/guest', { method: 'POST' })
+    const apiBase = import.meta.env.VITE_API_URL || ''
+    const res = await fetch(`${apiBase}/api/guest`, { method: 'POST' })
     if (!res.ok) throw new Error('Failed to get guest token')
     const { token } = await res.json()
     return signInWithCustomToken(auth, token)
