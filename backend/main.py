@@ -77,18 +77,23 @@ async def lifespan(app: FastAPI):
     logger.info(f"OpenAI key:      {'✓' if settings.openai_api_key else '✗ missing'}")
     logger.info(f"HuggingFace key: {'✓' if settings.huggingface_api_key else '✗ missing'}")
 
-    # Database warm-up (if Postgres is configured)
-    if settings.database_url:
-        try:
-            from db.engine import async_engine
-            async with async_engine.connect() as conn:
-                from sqlalchemy import text
-                await conn.execute(text("SELECT 1"))
-            logger.info("Database:        ✓ Postgres connected")
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(f"Database:        ✗ {exc}")
-    else:
-        logger.info("Database:        SQLite fallback (set DATABASE_URL for Postgres)")
+    # Database — auto-create all tables on startup (safe / idempotent)
+    try:
+        from db.engine import async_engine
+        from db.base import Base
+        import db.models  # noqa: F401 — registers all ORM models
+
+        async with async_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        async with async_engine.connect() as conn:
+            from sqlalchemy import text
+            await conn.execute(text("SELECT 1"))
+
+        db_type = "Postgres" if settings.database_url else "SQLite"
+        logger.info(f"Database:        ✓ {db_type} — all tables ready")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"Database:        ✗ {exc}")
 
     # Redis health-check (non-blocking)
     try:
@@ -99,54 +104,8 @@ async def lifespan(app: FastAPI):
     except Exception as exc:  # noqa: BLE001
         logger.warning(f"Redis:           ✗ {exc} (caching disabled)")
 
-    # Casbin ABAC — seed default policies (idempotent)
-    try:
-        from core.abac import seed_default_policies
-        seed_default_policies()
-        logger.info("Casbin:          ✓ policies seeded")
-    except Exception as exc:  # noqa: BLE001
-        logger.warning(f"Casbin:          ✗ {exc}")
-
-    # MCP Gateway — always register built-in tools, then load DB servers
-    try:
-        from mcp.gateway import get_gateway, McpServerConfig
-
-        gateway = get_gateway()
-
-        # ── Always register the built-in tool server ──────────────────
-        gateway.register(McpServerConfig(slug="builtin", transport="builtin"))
-        await gateway.connect("builtin")
-        builtin_count = len(gateway.list_tools("builtin"))
-        logger.info(f"MCP Builtin:     ✓ {builtin_count} built-in tools registered")
-
-        # ── Load any DB-registered servers ────────────────────────────
-        try:
-            from db.engine import async_session_factory
-            from db.models.mcp_server import McpServer
-            from sqlalchemy import select
-
-            async with async_session_factory() as db:
-                result = await db.execute(select(McpServer).where(McpServer.is_active == True))
-                servers = result.scalars().all()
-                for s in servers:
-                    gateway.register(McpServerConfig(
-                        slug=s.slug,
-                        transport=s.transport,
-                        command=s.command,
-                        args=s.args or [],
-                        env_vars=s.env_vars or {},
-                        url=s.url,
-                        auth_config=s.auth_config or {},
-                    ))
-            if servers:
-                results = await gateway.connect_all()
-                healthy = sum(1 for ok in results.values() if ok)
-                logger.info(f"MCP Gateway:     ✓ {healthy}/{len(results)} DB servers connected")
-        except Exception as db_exc:  # noqa: BLE001
-            logger.info(f"MCP Gateway:     DB servers skipped ({db_exc})")
-
-    except Exception as exc:  # noqa: BLE001
-        logger.warning(f"MCP Gateway:     ✗ {exc}")
+    # Future modules (ABAC, MCP Gateway) loaded here once built
+    # Each is wrapped in try/except so missing modules never crash startup
 
     logger.info("Open in browser: http://localhost:8000")
     logger.info("API docs:        http://localhost:8000/docs")
@@ -156,27 +115,18 @@ async def lifespan(app: FastAPI):
 
     # ── Shutdown ─────────────────────────────────────────────────────
     logger.info("Pyxis One — shutting down…")
-    if settings.database_url:
-        try:
-            from db.engine import async_engine
-            await async_engine.dispose()
-            logger.info("Database connection pool closed.")
-        except Exception:  # noqa: BLE001
-            pass
+    try:
+        from db.engine import async_engine
+        await async_engine.dispose()
+    except Exception:  # noqa: BLE001
+        pass
     try:
         from core.redis import close_redis
         await close_redis()
         logger.info("Redis connection closed.")
     except Exception:  # noqa: BLE001
         pass
-    try:
-        from mcp.gateway import close_gateway
-        from sessions.service import close_http_client
-        await close_gateway()
-        await close_http_client()
-        logger.info("MCP gateway + HTTP client closed.")
-    except Exception:  # noqa: BLE001
-        pass
+    # Future: close MCP gateway + HTTP client pools here
 
 
 # ── App ───────────────────────────────────────────────────────────────
