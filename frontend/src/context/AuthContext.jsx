@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import {
   GoogleAuthProvider,
   onAuthStateChanged,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   signInWithCustomToken,
@@ -44,8 +45,19 @@ export function AuthProvider({ children }) {
     })
   }, [fetchUserMeta])
 
-  const signInWithGoogle = () =>
-    signInWithRedirect(auth, new GoogleAuthProvider())
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider()
+    try {
+      // Popup works on real domains; faster UX than redirect
+      return await signInWithPopup(auth, provider)
+    } catch (err) {
+      // Popup blocked (iframe / strict browser) → fall back to redirect
+      if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
+        return signInWithRedirect(auth, provider)
+      }
+      throw err
+    }
+  }
 
   const signInAsGuest = async () => {
     const res = await fetch('/api/guest', { method: 'POST' })
