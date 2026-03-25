@@ -5,6 +5,7 @@ GET  /api/images/proxy — proxy external image bytes (NO auth — used by <img>
 """
 
 import logging
+import time
 import urllib.parse
 
 import httpx
@@ -44,6 +45,7 @@ def _user_keys(uid: str) -> dict:
 async def generate_image(req: ImageRequest, user: dict = Depends(verify_token)):
     settings = get_settings()
     keys = _user_keys(user["uid"])
+    t_start = time.monotonic()
 
     w, h = normalize_size(req.width, req.height)
     result = await generate(
@@ -54,6 +56,22 @@ async def generate_image(req: ImageRequest, user: dict = Depends(verify_token)):
         openai_key=keys.get("openai") or settings.openai_api_key,
         hf_key=keys.get("huggingface") or settings.huggingface_api_key,
     )
+
+    # Track image generation request
+    try:
+        from core.tracking import track
+        latency = int((time.monotonic() - t_start) * 1000)
+        track(
+            firebase_uid=user["uid"],
+            feature="image",
+            provider=result.source,
+            model="flux" if result.source == "huggingface" else result.source,
+            latency_ms=latency,
+            success=True,
+        )
+    except Exception:
+        pass
+
     return ImageResponse(url=result.url, prompt=req.prompt, source=result.source)
 
 

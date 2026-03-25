@@ -120,8 +120,8 @@ def _log_provider_error(provider: str, model: str, error_type: str) -> None:
         pass
 
 
-async def _track_usage(uid: str, model: str, latency_ms: int) -> None:
-    """Non-blocking usage telemetry."""
+async def _track_usage(uid: str, model: str, latency_ms: int, provider: str = "unknown") -> None:
+    """Non-blocking usage telemetry — writes to Firestore + Postgres request_logs."""
     try:
         get_firestore().collection("usage_events").add({
             "uid": uid, "endpoint": "chat", "model": model,
@@ -129,6 +129,36 @@ async def _track_usage(uid: str, model: str, latency_ms: int) -> None:
         })
     except Exception:
         pass
+    try:
+        from core.tracking import track
+        track(
+            firebase_uid=uid,
+            feature="chat",
+            provider=provider,
+            model=model,
+            latency_ms=latency_ms,
+            success=True,
+        )
+    except Exception:
+        pass
+
+
+def _infer_provider(model: str) -> str:
+    """Derive provider name from model ID (best-effort for tracking)."""
+    m = (model or "").lower()
+    if "gemini" in m:
+        return "gemini"
+    if any(x in m for x in ("llama-3.3-70b-versatile", "llama-3.1-8b-instant")):
+        return "groq"
+    if any(x in m for x in ("llama3.3-70b", "llama3.1-8b")):
+        return "cerebras"
+    if "meta-llama" in m or "sambanova" in m:
+        return "sambanova"
+    if m.startswith(("gpt-", "o1", "o3")):
+        return "openai"
+    if any(x in m for x in ("claude", "mistral", "openrouter")):
+        return "openrouter"
+    return "gemini"  # default
 
 
 async def _provider_chain(
@@ -341,7 +371,8 @@ async def chat(
         ):
             yield chunk
         latency = int((time.monotonic() - t_start) * 1000)
-        asyncio.create_task(_track_usage(user["uid"], req.model, latency))
+        provider = _infer_provider(req.model)
+        asyncio.create_task(_track_usage(user["uid"], req.model, latency, provider))
 
     return StreamingResponse(
         _generate(),
