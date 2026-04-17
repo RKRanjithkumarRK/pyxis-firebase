@@ -152,16 +152,17 @@ function DailyChart({ data }: { data: DailyCount[] }) {
 
 // ── Main dashboard ─────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const { currentUser } = useAuth()
+  const { user, getToken } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
   const fetchDashboard = useCallback(async () => {
-    if (!currentUser) return
+    if (!user) return
     setLoading(true)
     try {
-      const token = await currentUser.getIdToken()
+      const token = await getToken()
+      if (!token) return
       const res = await fetch('/api/analytics?endpoint=dashboard', {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -175,7 +176,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }, [currentUser])
+  }, [user, getToken])
 
   useEffect(() => {
     fetchDashboard()
