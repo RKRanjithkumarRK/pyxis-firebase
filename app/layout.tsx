@@ -3,6 +3,7 @@ import { IBM_Plex_Mono, Manrope, Space_Grotesk } from 'next/font/google'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+import BackendWarmup from '@/components/BackendWarmup'
 import './globals.css'
 
 const bodyFont = Manrope({
@@ -77,6 +78,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="bg-bg text-text-primary antialiased">
         <ThemeProvider>
+          <BackendWarmup />
           <AuthProvider>{children}</AuthProvider>
           <Toaster
             position="bottom-center"

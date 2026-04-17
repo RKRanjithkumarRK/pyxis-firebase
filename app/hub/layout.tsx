@@ -17,7 +17,18 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
     if (!loading && !user) router.push('/login')
   }, [loading, router, user])
 
-  if (loading || !user) return null
+  if (loading) return (
+    <div className="flex h-[100dvh] items-center justify-center bg-bg">
+      <div className="panel flex items-center gap-4 rounded-3xl px-6 py-5">
+        <div className="h-10 w-10 animate-pulse rounded-2xl bg-surface-active" />
+        <div className="space-y-2">
+          <div className="h-4 w-32 animate-pulse rounded-full bg-surface-active" />
+          <div className="h-3 w-24 animate-pulse rounded-full bg-surface-active" />
+        </div>
+      </div>
+    </div>
+  )
+  if (!user) return null
 
   return (
     <AppShell>
