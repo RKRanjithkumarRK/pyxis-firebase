@@ -179,7 +179,7 @@ async def _voice_stream(req: VoiceRequest, settings, winning_provider: list = No
     openai_key  = settings.openai_api_key
     openrouter_key = settings.openrouter_api_key
 
-    model_id = getattr(req, "model", "") or "gemini-2.0-flash"
+    model_id = getattr(req, "model", "") or "gemini-2.5-flash"
     provider = _classify_model(model_id)
 
     # ── Ordered provider list: primary first, then fallbacks ─────────
@@ -271,7 +271,7 @@ async def voice_chat(req: VoiceRequest, user: dict = Depends(verify_token)):
                 firebase_uid=user["uid"],
                 feature="voice",
                 provider=winning_provider[0],
-                model=getattr(req, "model", "") or "gemini-2.0-flash",
+                model=getattr(req, "model", "") or "gemini-2.5-flash",
                 latency_ms=latency,
                 success=(winning_provider[0] != "unknown"),
             )

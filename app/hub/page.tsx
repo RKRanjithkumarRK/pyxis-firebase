@@ -6,18 +6,26 @@ import {
   Activity,
   ArrowRight,
   Bot,
+  Brain,
   BrainCircuit,
-  CheckCircle2,
-  Command,
-  Globe2,
-  Lock,
-  Network,
+  Clock,
+  Code2,
+  ExternalLink,
+  FileText,
+  FileUp,
+  Image as ImageIcon,
+  Layers,
+  MessageSquare,
+  Mic,
+  Package,
+  PenLine,
   Radar,
   Search,
-  ShieldCheck,
   Sparkles,
+  Terminal,
   Wand2,
   Workflow,
+  Zap,
 } from 'lucide-react'
 
 const ROUTE_HISTORY_KEY = 'pyxis_recent_routes'
@@ -28,38 +36,39 @@ type LaunchModule = {
   description: string
   tag: string
   stat: string
-  icon: typeof Command
+  icon: typeof MessageSquare
+  isNew?: boolean
 }
 
 const LAUNCH_MODULES: LaunchModule[] = [
   {
     title: 'AI Chat',
     href: '/chat',
-    description: 'Run high-speed multimodel conversations with streamed responses and provider fallback.',
-    tag: 'Core surface',
+    description: 'Streamed multimodel conversations with smart provider routing and fallback.',
+    tag: 'Core',
     stat: '4 model lanes',
     icon: Sparkles,
   },
   {
     title: 'Command Center',
     href: '/tools/command-center',
-    description: 'Watch your model mesh, agent throughput, and live system events from one cockpit.',
+    description: 'Live model mesh, agent throughput, and system events from one cockpit.',
     tag: 'Operations',
     stat: '24 live events',
-    icon: Radar,
+    icon: Terminal,
   },
   {
     title: 'Research Studio',
     href: '/tools/research',
-    description: 'Run live-search research and turn sources into exportable competitive briefs.',
-    tag: 'Flagship new',
+    description: 'Run live-search research and turn sources into exportable cited briefs.',
+    tag: 'Flagship',
     stat: 'Cited briefs',
     icon: Search,
   },
   {
     title: 'Agent Fleet',
     href: '/tools/agents',
-    description: 'Deploy specialist agents across research, content, analysis, and execution workflows.',
+    description: 'Deploy specialist agents across research, content, analysis, and execution.',
     tag: 'Autonomous',
     stat: '12 agents',
     icon: Bot,
@@ -77,58 +86,166 @@ const LAUNCH_MODULES: LaunchModule[] = [
     href: '/tools/rag',
     description: 'Ground responses in your files, documents, and project context with retrieval.',
     tag: 'Memory',
-    stat: 'Source-aware answers',
+    stat: 'Source-aware',
     icon: BrainCircuit,
   },
   {
     title: 'Code Studio',
     href: '/tools/code',
     description: 'Generate, inspect, and refine code inside the same enterprise AI workspace.',
-    tag: 'Builder mode',
+    tag: 'Builder',
     stat: '50+ languages',
-    icon: Wand2,
+    icon: Code2,
+  },
+  {
+    title: 'Document Intelligence',
+    href: '/docs',
+    description: 'Analyze, summarize, and extract insights from any document or file.',
+    tag: 'New ✦',
+    stat: 'PDF · DOCX · CSV',
+    icon: FileText,
+    isNew: true,
+  },
+  {
+    title: 'AI Canvas',
+    href: '/canvas',
+    description: 'Collaborative infinite canvas for brainstorming and visual AI workflows.',
+    tag: 'New ✦',
+    stat: 'Visual workspace',
+    icon: Layers,
+    isNew: true,
+  },
+  {
+    title: 'AI Memory',
+    href: '/memory',
+    description: 'Persistent context across sessions — the platform remembers your preferences.',
+    tag: 'New ✦',
+    stat: 'Always learning',
+    icon: Brain,
+    isNew: true,
+  },
+  {
+    title: 'Writing Studio',
+    href: '/tools/write',
+    description: 'Long-form drafting, editing, and tone refinement with AI assistance.',
+    tag: 'Creative',
+    stat: '20+ templates',
+    icon: PenLine,
+  },
+  {
+    title: 'Image Studio',
+    href: '/images',
+    description: 'Generate, edit, and upscale images with state-of-the-art diffusion models.',
+    tag: 'Media',
+    stat: 'Multi-model',
+    icon: ImageIcon,
+  },
+  {
+    title: 'Voice AI',
+    href: '/voice',
+    description: 'Real-time speech-to-text, voice cloning, and conversational voice agents.',
+    tag: 'Audio',
+    stat: 'Real-time',
+    icon: Mic,
+  },
+  {
+    title: 'Model Arena',
+    href: '/tools/compare',
+    description: 'Side-by-side model evaluation with shared prompts and quality scoring.',
+    tag: 'Evaluation',
+    stat: '6 providers',
+    icon: Radar,
+  },
+  {
+    title: 'Marketplace',
+    href: '/tools/marketplace',
+    description: 'Discover, install, and configure AI tools, plugins, and integrations.',
+    tag: 'Ecosystem',
+    stat: '40+ integrations',
+    icon: Package,
   },
 ]
 
-const ENTERPRISE_SIGNALS = [
+const QUICK_ACTIONS = [
+  { label: 'New Chat', icon: MessageSquare, href: '/chat', color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' },
+  { label: 'Upload Document', icon: FileUp, href: '/docs', color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20' },
+  { label: 'Create Canvas', icon: Layers, href: '/canvas', color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/20' },
+  { label: 'Generate Image', icon: ImageIcon, href: '/images', color: 'text-pink-400', bg: 'bg-pink-500/10 border-pink-500/20' },
+  { label: 'Voice Mode', icon: Mic, href: '/voice', color: 'text-cyan-400', bg: 'bg-cyan-500/10 border-cyan-500/20' },
+]
+
+const AI_MEMORIES = [
+  { text: 'Prefers concise responses', icon: Sparkles },
+  { text: 'Working on React dashboard', icon: Code2 },
+  { text: 'Interested in AI research', icon: Radar },
+]
+
+const RECENT_ACTIVITY = [
+  { title: 'Chat session — GPT-4o', icon: MessageSquare, time: '2 hours ago', iconColor: 'text-blue-400' },
+  { title: 'Image generated — Flux 1.1', icon: ImageIcon, time: '5 hours ago', iconColor: 'text-pink-400' },
+  { title: 'Document analyzed — Q3 Report.pdf', icon: FileText, time: 'Yesterday', iconColor: 'text-purple-400' },
+  { title: 'Voice session — 4 mins', icon: Mic, time: 'Yesterday', iconColor: 'text-cyan-400' },
+]
+
+const PROVIDER_STATUS = [
+  { name: 'Gemini', latency: '42ms' },
+  { name: 'Groq', latency: '18ms' },
+  { name: 'OpenAI', latency: '61ms' },
+  { name: 'Cerebras', latency: '24ms' },
+  { name: 'SambaNova', latency: '35ms' },
+  { name: 'OpenRouter', latency: '53ms' },
+]
+
+const NEW_FEATURES = [
   {
-    title: 'Model Mesh',
-    value: 'Healthy',
-    detail: 'Gemini, Groq, Together, Mistral, and OpenRouter lanes ready for routing.',
-    icon: Network,
+    title: 'AI Canvas',
+    description: 'Infinite collaborative canvas for visual AI workflows and brainstorming.',
+    href: '/canvas',
+    icon: Layers,
+    gradient: 'from-orange-500/20 to-orange-500/5',
+    iconColor: 'text-orange-400',
   },
   {
-    title: 'Governance',
-    value: 'Guarded',
-    detail: 'Identity, project isolation, and token-aware APIs form the current control baseline.',
-    icon: ShieldCheck,
+    title: 'AI Memory',
+    description: 'Persistent cross-session context so your workspace learns from every interaction.',
+    href: '/memory',
+    icon: Brain,
+    gradient: 'from-violet-500/20 to-violet-500/5',
+    iconColor: 'text-violet-400',
   },
   {
-    title: 'Retrieval',
-    value: 'Indexed',
-    detail: 'Document intelligence, search, and project memory are ready to expand into a full knowledge fabric.',
-    icon: Search,
-  },
-  {
-    title: 'Global UX',
-    value: 'Immersive',
-    detail: 'The upgraded shell now looks like a real AI command platform rather than a plain tool grid.',
-    icon: Globe2,
+    title: 'Document Intelligence',
+    description: 'Upload PDFs, DOCX, and CSVs — extract, summarize, and query any document.',
+    href: '/docs',
+    icon: FileText,
+    gradient: 'from-emerald-500/20 to-emerald-500/5',
+    iconColor: 'text-emerald-400',
   },
 ]
 
-const OPS_FEED = [
-  'Agent deployment lane active and ready for multi-step runbooks.',
-  'Prompt, code, media, voice, and search surfaces remain available inside the same workspace shell.',
-  'Firebase-backed identity and persisted user state continue to support the upgraded front-end.',
-  'The platform story now aligns more closely with enterprise AI operating systems and control towers.',
-]
+function getGreeting(): string {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning,'
+  if (hour < 18) return 'Good afternoon,'
+  return 'Good evening,'
+}
+
+function formatDate(): string {
+  return new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
 
 export default function HubPage() {
   const router = useRouter()
   const [recentRoutes, setRecentRoutes] = useState<string[]>([])
   const [compactView, setCompactView] = useState(false)
   const [tightView, setTightView] = useState(false)
+  const [greeting] = useState(getGreeting)
+  const [dateStr] = useState(formatDate)
 
   useEffect(() => {
     try {
@@ -151,122 +268,114 @@ export default function HubPage() {
       setCompactView(height < 980 || width < 1680)
       setTightView(height < 820 || width < 1360)
     }
-
     syncCompactView()
     window.addEventListener('resize', syncCompactView)
     return () => window.removeEventListener('resize', syncCompactView)
   }, [])
 
-  const featuredMomentum = useMemo(() => {
-    const recentSet = new Set(recentRoutes)
-    const recent = LAUNCH_MODULES.filter((module) => recentSet.has(module.href))
-    return recent.length > 0 ? recent.slice(0, 3) : LAUNCH_MODULES.slice(0, 3)
-  }, [recentRoutes])
+  const displayLaunchModules = useMemo(() => {
+    if (tightView) return LAUNCH_MODULES.slice(0, 6)
+    if (compactView) return LAUNCH_MODULES.slice(0, 9)
+    return LAUNCH_MODULES
+  }, [tightView, compactView])
 
-  const displayLaunchModules = tightView
-    ? LAUNCH_MODULES.slice(0, 4)
-    : compactView
-      ? LAUNCH_MODULES.slice(0, 6)
-      : LAUNCH_MODULES
-  const displayOpsFeed = tightView
-    ? OPS_FEED.slice(0, 2)
-    : compactView
-      ? OPS_FEED.slice(0, 3)
-      : OPS_FEED
-
-  const launch = (module: LaunchModule) => {
+  const launch = (href: string) => {
     try {
-      const next = [module.href, ...recentRoutes.filter((route) => route !== module.href)].slice(0, 6)
+      const next = [href, ...recentRoutes.filter((r) => r !== href)].slice(0, 6)
       localStorage.setItem(ROUTE_HISTORY_KEY, JSON.stringify(next))
       setRecentRoutes(next)
     } catch {}
-    router.push(module.href)
+    router.push(href)
   }
+
+  const gap = tightView ? 'gap-3' : compactView ? 'gap-4' : 'gap-5'
+  const space = tightView ? 'space-y-3' : compactView ? 'space-y-4' : 'space-y-6'
+  const pad = tightView ? 'p-3.5' : compactView ? 'p-4' : 'p-5'
 
   return (
     <div className={`w-full px-4 sm:px-5 lg:px-6 xl:px-7 2xl:px-8 ${tightView ? 'pb-4 pt-2' : compactView ? 'pb-6 pt-3' : 'pb-8 pt-4'}`}>
-      <div className={`w-full ${tightView ? 'space-y-3' : compactView ? 'space-y-4' : 'space-y-6'}`}>
-        <section className="panel overflow-hidden rounded-[32px]">
-          <div className={`grid xl:grid-cols-[minmax(0,1.22fr)_minmax(360px,0.78fr)] 2xl:grid-cols-[minmax(0,1.26fr)_minmax(400px,0.74fr)] ${tightView ? 'gap-3 p-4 xl:p-5' : compactView ? 'gap-4 p-5 xl:p-6' : 'gap-6 p-6 xl:p-7'}`}>
-            <div>
-              <div className={`pill text-sm text-text-secondary ${tightView ? 'mb-3' : compactView ? 'mb-4' : 'mb-5'}`}>
-                <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.8)]" />
-                Control Tower live
-              </div>
-              <h1 className={`font-display leading-[0.98] text-text-primary ${tightView ? 'text-[clamp(1.7rem,2.35vw,2.6rem)]' : compactView ? 'text-[clamp(1.95rem,2.7vw,3rem)]' : 'text-[clamp(2.25rem,3vw,3.8rem)]'}`}>
-                Welcome to your <span className="text-gradient">Pyxis One</span> workspace.
-              </h1>
-              <p className={`max-w-4xl text-text-secondary ${tightView ? 'mt-2.5 text-xs leading-5 sm:text-sm sm:leading-6' : compactView ? 'mt-3 text-sm leading-6 sm:text-[15px] sm:leading-7' : 'mt-4 text-[15px] leading-7 sm:text-base sm:leading-8'}`}>
-                A calmer launch surface for chat, agents, workflows, knowledge, media, and model operations, designed to stay usable across real working screens.
-              </p>
+      <div className={`w-full ${space}`}>
 
-              <div className={`grid gap-3 sm:grid-cols-3 ${tightView ? 'mt-3 gap-2' : compactView ? 'mt-4' : 'mt-6'}`}>
-                {[
-                  ['17+', 'Integrated AI surfaces'],
-                  ['5', 'Provider lanes currently wired in'],
-                  ['1', 'Unified operational shell'],
-                ].map(([value, label]) => (
-                  <div key={label} className={`metric-card rounded-[28px] ${tightView ? 'p-3' : compactView ? 'p-3.5' : 'p-4'}`}>
-                    <p className={`font-display leading-none text-text-primary ${tightView ? 'text-[clamp(1.5rem,2vw,2.1rem)]' : compactView ? 'text-[clamp(1.75rem,2.2vw,2.5rem)]' : 'text-[clamp(2rem,2.8vw,3rem)]'}`}>{value}</p>
-                    <p className={`text-text-secondary ${tightView ? 'mt-1 text-[11px] leading-4 sm:text-xs' : compactView ? 'mt-1.5 text-xs leading-5 sm:text-sm' : 'mt-2 text-sm leading-6'}`}>{label}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className={`grid gap-3 sm:grid-cols-2 ${compactView ? 'xl:content-start' : ''}`}>
-              {ENTERPRISE_SIGNALS.map((signal) => (
-                <div key={signal.title} className={`glass-panel rounded-[26px] ${tightView ? 'p-3' : compactView ? 'p-3.5' : 'p-4'}`}>
-                  <div className="flex items-center justify-between">
-                    <div className={`flex items-center justify-center rounded-2xl bg-surface-hover ${tightView ? 'h-8 w-8' : compactView ? 'h-9 w-9' : 'h-10 w-10'}`}>
-                      <signal.icon className="text-accent" size={tightView ? 16 : compactView ? 18 : 20} />
-                    </div>
-                    <span className="pill text-xs text-accent">{signal.value}</span>
-                  </div>
-                  <p className={`font-display text-text-primary ${tightView ? 'mt-2.5 text-[clamp(1.1rem,1.45vw,1.4rem)]' : compactView ? 'mt-3 text-[clamp(1.3rem,1.6vw,1.7rem)]' : 'mt-4 text-[clamp(1.55rem,2vw,2rem)]'}`}>{signal.title}</p>
-                  <p className={`text-text-secondary ${tightView ? 'mt-1 text-[11px] leading-4 sm:text-xs' : compactView ? 'mt-1.5 text-xs leading-5 sm:text-sm sm:leading-6' : 'mt-2 text-sm leading-6'}`}>{signal.detail}</p>
-                </div>
-              ))}
-            </div>
+        {/* ── Header Row ── */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-mono text-xs uppercase tracking-[0.28em] text-text-tertiary">{greeting}</p>
+            <h1 className={`mt-1 font-display leading-tight text-text-primary ${tightView ? 'text-[clamp(1.4rem,1.8vw,2rem)]' : compactView ? 'text-[clamp(1.6rem,2vw,2.3rem)]' : 'text-[clamp(1.9rem,2.4vw,2.8rem)]'}`}>
+              Welcome back to <span className="text-gradient">Pyxis One</span>
+            </h1>
           </div>
-        </section>
+          <div className="flex flex-col items-start gap-2 sm:items-end">
+            <div className="pill flex items-center gap-2 text-sm text-emerald-400">
+              <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]" />
+              All systems operational
+            </div>
+            <p className="font-mono text-xs text-text-tertiary">{dateStr}</p>
+          </div>
+        </div>
 
-        <section className={`grid xl:grid-cols-[minmax(0,1.12fr)_minmax(360px,0.88fr)] ${tightView ? 'gap-3' : compactView ? 'gap-4' : 'gap-5'}`}>
-          <div className={tightView ? 'space-y-3' : compactView ? 'space-y-4' : 'space-y-6'}>
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        {/* ── Quick Action Row ── */}
+        <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
+          {QUICK_ACTIONS.map((action) => (
+            <button
+              key={action.href}
+              onClick={() => launch(action.href)}
+              className={`flex shrink-0 items-center gap-2.5 rounded-[20px] border px-4 py-3 text-sm font-medium transition-all hover:-translate-y-0.5 hover:shadow-lg ${action.bg} ${action.color}`}
+            >
+              <action.icon size={16} />
+              {action.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Main Grid ── */}
+        <div className={`grid xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] ${gap}`}>
+
+          {/* Left Column */}
+          <div className={space}>
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="text-sm uppercase tracking-[0.28em] text-text-tertiary">Launch surfaces</p>
-                <h2 className={`mt-2 font-display leading-tight text-text-primary ${tightView ? 'text-[clamp(1.35rem,1.65vw,1.8rem)]' : compactView ? 'text-[clamp(1.55rem,1.9vw,2.05rem)]' : 'text-[clamp(1.8rem,2.15vw,2.45rem)]'}`}>Start from the right operational lane.</h2>
+                <p className="text-[10px] uppercase tracking-[0.28em] text-text-tertiary">Platform</p>
+                <h2 className={`mt-1.5 font-display leading-tight text-text-primary ${tightView ? 'text-[clamp(1.25rem,1.5vw,1.7rem)]' : compactView ? 'text-[clamp(1.45rem,1.75vw,1.95rem)]' : 'text-[clamp(1.7rem,2vw,2.3rem)]'}`}>
+                  Launch Surfaces
+                </h2>
               </div>
               <button
                 onClick={() => router.push('/tools/command-center')}
-                className="inline-flex w-fit items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-text-secondary transition-colors hover:border-border-light hover:text-text-primary"
+                className="inline-flex w-fit items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-text-secondary transition-colors hover:border-border hover:text-text-primary"
               >
-                Open control center
+                Open Command Center
                 <ArrowRight size={14} />
               </button>
             </div>
 
-            <div className={`grid gap-4 xl:grid-cols-2 2xl:grid-cols-3 ${tightView ? 'gap-3' : ''}`}>
+            <div className={`grid gap-3 xl:grid-cols-2 2xl:grid-cols-3 ${tightView ? 'gap-2.5' : ''}`}>
               {displayLaunchModules.map((module) => (
                 <button
                   key={module.href}
-                  onClick={() => launch(module)}
-                  className={`panel group rounded-[28px] text-left transition-transform hover:-translate-y-1 ${tightView ? 'p-3.5' : compactView ? 'p-4' : 'p-5'}`}
+                  onClick={() => launch(module.href)}
+                  className={`panel group rounded-[26px] text-left transition-all hover:-translate-y-1 hover:shadow-xl ${pad}`}
                 >
                   <div className="flex items-center justify-between">
-                    <div className={`flex items-center justify-center rounded-2xl bg-surface-hover ${tightView ? 'h-9 w-9' : compactView ? 'h-10 w-10' : 'h-11 w-11'}`}>
-                      <module.icon className="text-accent" size={tightView ? 16 : compactView ? 18 : 20} />
+                    <div className={`flex items-center justify-center rounded-2xl bg-surface-hover ${tightView ? 'h-9 w-9' : 'h-10 w-10'}`}>
+                      <module.icon
+                        size={tightView ? 15 : 18}
+                        className={module.isNew ? 'text-violet-400' : 'text-accent'}
+                      />
                     </div>
-                    <span className="pill text-xs text-text-secondary">{module.tag}</span>
+                    <span className={`pill text-[11px] ${module.isNew ? 'text-violet-400' : 'text-text-secondary'}`}>
+                      {module.tag}
+                    </span>
                   </div>
-                  <h3 className={`font-display text-text-primary ${tightView ? 'mt-3 text-[clamp(1.05rem,1.35vw,1.35rem)]' : compactView ? 'mt-4 text-[clamp(1.2rem,1.45vw,1.55rem)]' : 'mt-5 text-[clamp(1.45rem,1.8vw,2rem)]'}`}>{module.title}</h3>
-                  <p className={`text-text-secondary ${tightView ? 'mt-1.5 text-[11px] leading-4 sm:text-xs' : compactView ? 'mt-2 text-xs leading-5 sm:text-sm' : 'mt-3 text-sm leading-6'}`}>{module.description}</p>
-                  <div className={`flex items-center justify-between ${tightView ? 'mt-3' : compactView ? 'mt-4' : 'mt-5'}`}>
-                    <span className="text-sm font-semibold text-text-primary">{module.stat}</span>
-                    <span className="inline-flex items-center gap-1 text-sm text-text-tertiary transition-colors group-hover:text-text-primary">
-                      Launch
-                      <ArrowRight size={14} />
+                  <h3 className={`font-display text-text-primary ${tightView ? 'mt-2.5 text-[clamp(0.95rem,1.2vw,1.2rem)]' : compactView ? 'mt-3 text-[clamp(1.1rem,1.3vw,1.4rem)]' : 'mt-4 text-[clamp(1.3rem,1.6vw,1.8rem)]'}`}>
+                    {module.title}
+                  </h3>
+                  <p className={`text-text-secondary ${tightView ? 'mt-1 text-[11px] leading-4' : compactView ? 'mt-1.5 text-xs leading-5' : 'mt-2 text-sm leading-6'}`}>
+                    {module.description}
+                  </p>
+                  <div className={`flex items-center justify-between ${tightView ? 'mt-2.5' : 'mt-4'}`}>
+                    <span className="font-mono text-xs text-text-tertiary">{module.stat}</span>
+                    <span className="inline-flex items-center gap-1 text-xs text-text-tertiary opacity-0 transition-all group-hover:opacity-100 group-hover:text-text-primary">
+                      Launch <ArrowRight size={12} />
                     </span>
                   </div>
                 </button>
@@ -274,57 +383,149 @@ export default function HubPage() {
             </div>
           </div>
 
-          <div className={tightView ? 'space-y-3' : compactView ? 'space-y-4' : 'space-y-6'}>
-            <div className={`panel rounded-[28px] ${tightView ? 'p-3.5' : compactView ? 'p-4' : 'p-5'}`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.28em] text-text-tertiary">Momentum</p>
-                  <h2 className={`mt-2 font-display leading-tight text-text-primary ${tightView ? 'text-[clamp(1.5rem,1.75vw,1.95rem)]' : compactView ? 'text-[clamp(1.7rem,2vw,2.2rem)]' : 'text-[clamp(2rem,2.3vw,2.7rem)]'}`}>Continue from your strongest surfaces.</h2>
-                </div>
-                <Activity className="text-accent" size={18} />
-              </div>
+          {/* Right Column */}
+          <div className={space}>
 
-              <div className={tightView ? 'mt-3 space-y-2' : compactView ? 'mt-4 space-y-2.5' : 'mt-5 space-y-3'}>
-                {featuredMomentum.map((module, index) => (
-                  <button
-                    key={module.href}
-                    onClick={() => launch(module)}
-                    className={`flex w-full items-center gap-3 rounded-[20px] border border-border/80 bg-surface-hover px-4 text-left transition-colors hover:bg-surface-hover ${tightView ? 'py-2.5' : compactView ? 'py-3' : 'py-3.5'}`}
+            {/* AI Memory Widget */}
+            <div className={`glass-panel rounded-[26px] ${pad}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-violet-500/10">
+                    <Brain size={18} className="text-violet-400" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.28em] text-text-tertiary">Persistent</p>
+                    <h3 className="font-display text-sm text-text-primary">AI Memory</h3>
+                  </div>
+                </div>
+                <span className="pill text-[11px] text-violet-400">New ✦</span>
+              </div>
+              <div className="mt-4 space-y-2">
+                {AI_MEMORIES.map((memory) => (
+                  <div
+                    key={memory.text}
+                    className="flex items-center gap-3 rounded-[16px] border border-border/60 bg-surface-hover px-3.5 py-2.5"
                   >
-                    <div className={`flex items-center justify-center rounded-2xl bg-surface-hover text-text-primary ${tightView ? 'h-9 w-9' : 'h-11 w-11'}`}>
-                      <module.icon size={tightView ? 16 : 18} />
+                    <memory.icon size={14} className="shrink-0 text-violet-400" />
+                    <p className="text-sm text-text-secondary">{memory.text}</p>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => router.push('/memory')}
+                className="mt-3 flex items-center gap-1.5 text-xs text-text-tertiary transition-colors hover:text-text-primary"
+              >
+                View all memories <ArrowRight size={12} />
+              </button>
+            </div>
+
+            {/* Recent Activity */}
+            <div className={`panel rounded-[26px] ${pad}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-surface-hover">
+                    <Clock size={18} className="text-accent" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.28em] text-text-tertiary">History</p>
+                    <h3 className="font-display text-sm text-text-primary">Recent Sessions</h3>
+                  </div>
+                </div>
+                <Activity size={16} className="text-text-tertiary" />
+              </div>
+              <div className="mt-4 space-y-2">
+                {RECENT_ACTIVITY.map((item) => (
+                  <div
+                    key={item.title}
+                    className="flex items-center gap-3 rounded-[16px] bg-surface-hover px-3.5 py-2.5"
+                  >
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-bg">
+                      <item.icon size={14} className={item.iconColor} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-text-primary">{module.title}</p>
-                      <p className="mt-1 text-xs text-text-tertiary">
-                        {index === 0 ? 'Recommended next action' : 'Recent high-value surface'}
-                      </p>
+                      <p className="truncate text-sm text-text-primary">{item.title}</p>
+                      <p className="mt-0.5 text-[11px] text-text-tertiary">{item.time}</p>
                     </div>
-                    <ArrowRight className="text-text-tertiary" size={16} />
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>
 
-            <div className={`glass-panel rounded-[28px] ${tightView ? 'p-3.5' : compactView ? 'p-4' : 'p-5'}`}>
+            {/* System Health */}
+            <div className={`glass-panel rounded-[26px] ${pad}`}>
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.28em] text-text-tertiary">Ops feed</p>
-                  <h3 className={`mt-2 font-display text-text-primary ${tightView ? 'text-[clamp(1.35rem,1.6vw,1.7rem)]' : compactView ? 'text-[clamp(1.5rem,1.8vw,1.95rem)]' : 'text-[clamp(1.8rem,2vw,2.3rem)]'}`}>System narrative</h3>
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-500/10">
+                    <Zap size={18} className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.28em] text-text-tertiary">Monitoring</p>
+                    <h3 className="font-display text-sm text-text-primary">Provider Status</h3>
+                  </div>
                 </div>
-                <Lock className="text-accent" size={18} />
+                <span className="pill text-[11px] text-emerald-400">All live</span>
               </div>
-              <div className={tightView ? 'mt-2.5 space-y-2' : compactView ? 'mt-3 space-y-2.5' : 'mt-4 space-y-3'}>
-                {displayOpsFeed.map((item) => (
-                  <div key={item} className={`flex gap-3 rounded-[20px] bg-surface-hover px-4 ${tightView ? 'py-2.5' : compactView ? 'py-3' : 'py-3.5'}`}>
-                    <CheckCircle2 className="mt-0.5 text-accent" size={18} />
-                    <p className={`text-text-secondary ${tightView ? 'text-[11px] leading-4 sm:text-xs' : compactView ? 'text-xs leading-5 sm:text-sm sm:leading-6' : 'text-sm leading-6'}`}>{item}</p>
+              <div className="mt-4 space-y-2">
+                {PROVIDER_STATUS.map((provider) => (
+                  <div
+                    key={provider.name}
+                    className="flex items-center justify-between rounded-[14px] bg-surface-hover px-3.5 py-2.5"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
+                      <span className="text-sm text-text-primary">{provider.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[11px] text-text-tertiary">{provider.latency}</span>
+                      <span className="text-[11px] text-emerald-400">Operational</span>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           </div>
-        </section>
+        </div>
+
+        {/* ── Bottom Banner — New in Pyxis One ── */}
+        <div className="overflow-hidden rounded-[28px] border border-border bg-gradient-to-br from-surface-hover to-bg p-1">
+          <div className="rounded-[24px] bg-gradient-to-br from-violet-500/8 via-bg to-bg p-5 sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-2 w-2 rounded-full bg-violet-400 shadow-[0_0_10px_rgba(139,92,246,0.8)]" />
+                  <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-violet-400">Just shipped</p>
+                </div>
+                <h2 className={`mt-2 font-display text-text-primary ${tightView ? 'text-[clamp(1.2rem,1.4vw,1.6rem)]' : compactView ? 'text-[clamp(1.35rem,1.6vw,1.8rem)]' : 'text-[clamp(1.6rem,1.9vw,2.2rem)]'}`}>
+                  New in Pyxis One
+                </h2>
+                <p className="mt-1 text-sm text-text-secondary">Three powerful new surfaces, now live across your workspace.</p>
+              </div>
+              <ExternalLink size={18} className="hidden text-text-tertiary sm:block" />
+            </div>
+
+            <div className={`mt-5 grid gap-3 sm:grid-cols-3`}>
+              {NEW_FEATURES.map((feature) => (
+                <button
+                  key={feature.href}
+                  onClick={() => launch(feature.href)}
+                  className={`group flex items-start gap-3 rounded-[20px] border border-border/60 bg-gradient-to-br p-4 text-left transition-all hover:-translate-y-0.5 hover:border-border ${feature.gradient}`}
+                >
+                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-bg/60">
+                    <feature.icon size={18} className={feature.iconColor} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-display text-sm text-text-primary">{feature.title}</p>
+                    <p className="mt-1 text-xs leading-5 text-text-secondary">{feature.description}</p>
+                    <span className="mt-2 inline-flex items-center gap-1 text-xs text-text-tertiary transition-colors group-hover:text-text-primary">
+                      Explore <ArrowRight size={11} />
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   )

@@ -5,9 +5,12 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   BarChart2,
   Bot,
+  Brain,
   Code2,
+  FileText,
   Globe,
   Image,
+  Layers,
   LayoutGrid,
   MessageSquare,
   Mic,
@@ -19,6 +22,7 @@ import {
   Sparkles,
   Terminal,
   TrendingUp,
+  Users,
   Wand2,
   Workflow,
   X,
@@ -52,6 +56,8 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
       { href: '/tools/search', icon: Globe, label: 'Web Search' },
       { href: '/tools/news', icon: Rss, label: 'AI News' },
       { href: '/tools/compare', icon: BarChart2, label: 'Model Compare' },
+      { href: '/memory', icon: Brain, label: 'AI Memory', badge: 'New' },
+      { href: '/docs', icon: FileText, label: 'Document Intelligence', badge: 'New' },
     ],
   },
   {
@@ -61,7 +67,15 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
       { href: '/tools/write', icon: PenLine, label: 'Writing Studio' },
       { href: '/images', icon: Image, label: 'Image Studio' },
       { href: '/voice', icon: Mic, label: 'Voice AI' },
+      { href: '/canvas', icon: Layers, label: 'AI Canvas', badge: 'New' },
       { href: '/tools/marketplace', icon: Package, label: 'Marketplace' },
+    ],
+  },
+  {
+    label: 'Workspace',
+    items: [
+      { href: '/personas', icon: Users, label: 'AI Personas', badge: 'New' },
+      { href: '/tools/prompts', icon: Sparkles, label: 'Prompt Library' },
     ],
   },
 ]

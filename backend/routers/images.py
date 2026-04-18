@@ -87,8 +87,17 @@ async def proxy_image(url: str = Query(...)):
         if not any(host == h or host.endswith("." + h) for h in ALLOWED_HOSTS):
             raise HTTPException(403, f"Host not allowed: {host}")
 
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=False) as client:
             resp = await client.get(url)
+            # Follow redirects only if they stay on allow-listed hosts
+            hops = 0
+            while resp.is_redirect and hops < 5:
+                loc = resp.headers.get("location", "")
+                redir_host = urllib.parse.urlparse(loc).netloc.lower()
+                if not any(redir_host == h or redir_host.endswith("." + h) for h in ALLOWED_HOSTS):
+                    raise HTTPException(403, f"Redirect to disallowed host: {redir_host}")
+                resp = await client.get(loc)
+                hops += 1
 
         if not resp.is_success:
             raise HTTPException(502, "Upstream image fetch failed")
