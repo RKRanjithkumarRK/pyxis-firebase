@@ -34,6 +34,7 @@ from core.config import get_settings
 from routers import (
     admin,
     agent_memory,
+    analytics,
     chat,
     chat_tools,
     conversations,
@@ -216,6 +217,7 @@ app.include_router(prompts.router,          prefix=PREFIX, tags=["Prompts"])
 app.include_router(agent_memory.router,     prefix=PREFIX, tags=["Agent Memory"])
 app.include_router(schedules.router,        prefix=PREFIX, tags=["Schedules"])
 app.include_router(chat_tools.router,       prefix=PREFIX, tags=["Chat Tools (MCP)"])
+app.include_router(analytics.router,        prefix=PREFIX, tags=["Analytics"])
 app.include_router(terminal.router,                         tags=["Terminal"])  # WebSocket, no /api prefix
 
 # ── v1 API routes (/api/v1/*) — enterprise endpoints ─────────────────

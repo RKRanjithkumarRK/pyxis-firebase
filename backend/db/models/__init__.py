@@ -10,3 +10,4 @@ from db.models.mcp_server import McpServer  # noqa: F401
 from db.models.feature_flag import FeatureFlag  # noqa: F401
 from db.models.policy import CasbinPolicy  # noqa: F401
 from db.models.analytics import TokenUsage, UIEvent, AuditEvent  # noqa: F401
+from db.models.request_log import RequestLog  # noqa: F401

@@ -18,6 +18,7 @@ import {
   Search,
   Sparkles,
   Terminal,
+  TrendingUp,
   Wand2,
   Workflow,
   X,
@@ -36,6 +37,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
     label: 'Control',
     items: [
       { href: '/hub', icon: LayoutGrid, label: 'Workspace Home' },
+      { href: '/dashboard', icon: TrendingUp, label: 'Analytics' },
       { href: '/chat', icon: MessageSquare, label: 'AI Chat' },
       { href: '/tools/command-center', icon: Terminal, label: 'Command Center', badge: 'Live' },
       { href: '/tools/workflow', icon: Workflow, label: 'Workflow Builder', badge: 'New' },

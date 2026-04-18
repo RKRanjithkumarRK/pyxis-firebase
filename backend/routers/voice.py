@@ -16,6 +16,7 @@ Auto-fallback chain if the chosen provider fails:
 import json
 import logging
 import re
+import time
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, Depends
@@ -159,7 +160,7 @@ async def _try_openrouter(
         yield token
 
 
-async def _voice_stream(req: VoiceRequest, settings) -> AsyncGenerator[str, None]:
+async def _voice_stream(req: VoiceRequest, settings, winning_provider: list = None) -> AsyncGenerator[str, None]:
     system = VOICE_SYSTEM_PROMPT
 
     # Enrich with live data when needed
@@ -240,6 +241,8 @@ async def _voice_stream(req: VoiceRequest, settings) -> AsyncGenerator[str, None
                 yield sse(token)
 
             if tokens_seen:
+                if winning_provider is not None:
+                    winning_provider[0] = p_name
                 yield "data: [DONE]\n\n"
                 return
 
@@ -255,8 +258,28 @@ async def _voice_stream(req: VoiceRequest, settings) -> AsyncGenerator[str, None
 @router.post("/voice")
 async def voice_chat(req: VoiceRequest, user: dict = Depends(verify_token)):
     settings = get_settings()
+    t_start = time.monotonic()
+
+    async def _tracked_stream():
+        winning_provider = ["unknown"]
+        async for chunk in _voice_stream(req, settings, winning_provider):
+            yield chunk
+        latency = int((time.monotonic() - t_start) * 1000)
+        try:
+            from core.tracking import track
+            track(
+                firebase_uid=user["uid"],
+                feature="voice",
+                provider=winning_provider[0],
+                model=getattr(req, "model", "") or "gemini-2.0-flash",
+                latency_ms=latency,
+                success=(winning_provider[0] != "unknown"),
+            )
+        except Exception:
+            pass
+
     return StreamingResponse(
-        _voice_stream(req, settings),
+        _tracked_stream(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
