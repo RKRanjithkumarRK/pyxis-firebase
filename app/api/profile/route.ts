@@ -1,35 +1,35 @@
+/**
+ * Profile proxy — forwards to HuggingFace backend which has
+ * full Firebase Admin credentials and Firestore access.
+ */
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth-helper'
-import { adminDb } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
+
+const HF = process.env.BACKEND_URL || 'https://ranjith00743-pyxis-one-backend.hf.space'
+
+async function proxy(req: NextRequest, method: string, body?: object, qs = '') {
+  const token = req.headers.get('authorization') || ''
+  const res = await fetch(`${HF}/api/profile${qs}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', Authorization: token },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  })
+  const data = await res.json().catch(() => ({}))
+  return NextResponse.json(data, { status: res.ok ? 200 : res.status })
+}
 
 export async function GET(request: NextRequest) {
   const user = await verifyToken(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
   const section = new URL(request.url).searchParams.get('section')
-
-  if (section) {
-    const doc = await adminDb.doc(`users/${user.uid}/settings/${section}`).get()
-    return NextResponse.json(doc.exists ? doc.data() : {})
-  }
-
-  const doc = await adminDb.doc(`users/${user.uid}`).get()
-  return NextResponse.json(doc.exists ? doc.data() : {})
+  return proxy(request, 'GET', undefined, section ? `?section=${section}` : '')
 }
 
 export async function POST(request: NextRequest) {
   const user = await verifyToken(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { section, ...data } = await request.json()
-
-  if (section) {
-    await adminDb.doc(`users/${user.uid}/settings/${section}`).set(data, { merge: true })
-  } else {
-    await adminDb.doc(`users/${user.uid}`).set(data, { merge: true })
-  }
-
-  return NextResponse.json({ success: true })
+  const body = await request.json().catch(() => ({}))
+  return proxy(request, 'POST', body)
 }

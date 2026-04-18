@@ -1,55 +1,41 @@
+/**
+ * Keys proxy — forwards to HuggingFace backend which has
+ * full Firebase Admin credentials and Firestore access.
+ */
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth-helper'
-import { adminDb } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
+
+const HF = process.env.BACKEND_URL || 'https://ranjith00743-pyxis-one-backend.hf.space'
+
+async function proxy(req: NextRequest, method: string, body?: object, qs = '') {
+  const token = req.headers.get('authorization') || ''
+  const res = await fetch(`${HF}/api/keys${qs}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', Authorization: token },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  })
+  const data = await res.json().catch(() => ({}))
+  return NextResponse.json(data, { status: res.ok ? 200 : res.status })
+}
 
 export async function GET(request: NextRequest) {
   const user = await verifyToken(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const doc = await adminDb.doc(`users/${user.uid}/private/apikeys`).get()
-  const data = doc.exists ? doc.data() || {} : {}
-  // Return only which providers are configured, NOT actual keys
-  const configured = Object.keys(data).filter(k => !!data[k])
-  return NextResponse.json({ configured })
+  return proxy(request, 'GET')
 }
 
 export async function POST(request: NextRequest) {
   const user = await verifyToken(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { provider, key } = await request.json()
-  const managedProviders = new Set(['openai', 'gemini', 'huggingface'])
-  if (managedProviders.has(provider)) {
-    return NextResponse.json({ error: 'This key is managed automatically by the admin.' }, { status: 403 })
-  }
-
-  // Validate key format
-  const prefixes: Record<string, string> = {
-    openrouter: 'sk-or-',
-    openai: 'sk-',
-    huggingface: 'hf_',
-  }
-  const prefix = prefixes[provider]
-  if (prefix && !key.startsWith(prefix)) {
-    return NextResponse.json({ error: `Invalid ${provider} key. Should start with "${prefix}"` }, { status: 400 })
-  }
-
-  await adminDb.doc(`users/${user.uid}/private/apikeys`).set({ [provider]: key }, { merge: true })
-  return NextResponse.json({ success: true })
+  const body = await request.json().catch(() => ({}))
+  return proxy(request, 'POST', body)
 }
 
 export async function DELETE(request: NextRequest) {
   const user = await verifyToken(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const provider = new URL(request.url).searchParams.get('provider')
-  if (!provider) return NextResponse.json({ error: 'Missing provider' }, { status: 400 })
-
-  const { FieldValue } = await import('firebase-admin/firestore')
-  await adminDb.doc(`users/${user.uid}/private/apikeys`).update({
-    [provider]: FieldValue.delete(),
-  })
-  return NextResponse.json({ success: true })
+  const provider = new URL(request.url).searchParams.get('provider') || ''
+  return proxy(request, 'DELETE', undefined, `?provider=${provider}`)
 }

@@ -1,73 +1,49 @@
+/**
+ * Conversations proxy — forwards to HuggingFace backend which has
+ * full Firebase Admin credentials and Firestore access.
+ */
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth-helper'
-import { adminDb } from '@/lib/firebase-admin'
-import { defaultModel } from '@/lib/models'
 
 export const dynamic = 'force-dynamic'
+
+const HF = process.env.BACKEND_URL || 'https://ranjith00743-pyxis-one-backend.hf.space'
+
+async function proxyTo(req: NextRequest, path: string, method: string, body?: object) {
+  const token = req.headers.get('authorization') || ''
+  const url = `${HF}/api${path}`
+  const res = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json', Authorization: token },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  })
+  const data = await res.json().catch(() => ({}))
+  return NextResponse.json(data, { status: res.ok ? 200 : res.status })
+}
 
 export async function GET(request: NextRequest) {
   const user = await verifyToken(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const snap = await adminDb
-    .collection(`users/${user.uid}/conversations`)
-    .orderBy('updatedAt', 'desc')
-    .limit(50)
-    .get()
-
-  const conversations = snap.docs
-    .map(d => ({ id: d.id, ...d.data() } as any))
-    .filter(c => !c.archived)
-  return NextResponse.json({ conversations })
+  return proxyTo(request, '/conversations', 'GET')
 }
 
 export async function POST(request: NextRequest) {
   const user = await verifyToken(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { title, model, projectId } = await request.json()
-  const now = new Date().toISOString()
-
-  const ref = await adminDb.collection(`users/${user.uid}/conversations`).add({
-    title: title || 'New Chat',
-    model: model || defaultModel,
-    createdAt: now,
-    updatedAt: now,
-    archived: false,
-    ...(projectId ? { projectId } : {}),
-  })
-
-  return NextResponse.json({ id: ref.id })
+  const body = await request.json().catch(() => ({}))
+  return proxyTo(request, '/conversations', 'POST', body)
 }
 
 export async function PATCH(request: NextRequest) {
   const user = await verifyToken(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { id, title } = await request.json()
-  if (!id || !title?.trim()) return NextResponse.json({ error: 'Missing id or title' }, { status: 400 })
-
-  await adminDb.doc(`users/${user.uid}/conversations/${id}`).update({
-    title: title.trim(),
-    updatedAt: new Date().toISOString(),
-  })
-
-  return NextResponse.json({ success: true })
+  const body = await request.json().catch(() => ({}))
+  return proxyTo(request, '/conversations', 'PATCH', body)
 }
 
 export async function DELETE(request: NextRequest) {
   const user = await verifyToken(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
   const id = new URL(request.url).searchParams.get('id')
-  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
-
-  // Delete all messages
-  const msgs = await adminDb.collection(`users/${user.uid}/conversations/${id}/messages`).get()
-  const batch = adminDb.batch()
-  msgs.docs.forEach(d => batch.delete(d.ref))
-  batch.delete(adminDb.doc(`users/${user.uid}/conversations/${id}`))
-  await batch.commit()
-
-  return NextResponse.json({ success: true })
+  return proxyTo(request, `/conversations?id=${id}`, 'DELETE')
 }

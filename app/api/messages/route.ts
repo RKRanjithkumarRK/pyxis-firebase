@@ -1,55 +1,35 @@
+/**
+ * Messages proxy — forwards to HuggingFace backend which has
+ * full Firebase Admin credentials and Firestore access.
+ */
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth-helper'
-import { adminDb } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
+
+const HF = process.env.BACKEND_URL || 'https://ranjith00743-pyxis-one-backend.hf.space'
+
+async function proxyTo(req: NextRequest, path: string, method: string, body?: object) {
+  const token = req.headers.get('authorization') || ''
+  const res = await fetch(`${HF}/api${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', Authorization: token },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  })
+  const data = await res.json().catch(() => ({}))
+  return NextResponse.json(data, { status: res.ok ? 200 : res.status })
+}
 
 export async function GET(request: NextRequest) {
   const user = await verifyToken(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const conversationId = new URL(request.url).searchParams.get('conversationId')
-  if (!conversationId) return NextResponse.json({ error: 'Missing conversationId' }, { status: 400 })
-
-  const snap = await adminDb
-    .collection(`users/${user.uid}/conversations/${conversationId}/messages`)
-    .orderBy('createdAt', 'asc')
-    .get()
-
-  const messages = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-  return NextResponse.json({ messages })
+  const convId = new URL(request.url).searchParams.get('conversationId')
+  return proxyTo(request, `/messages?conversationId=${convId}`, 'GET')
 }
 
 export async function POST(request: NextRequest) {
   const user = await verifyToken(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { conversationId, role, content, imageUrl } = await request.json()
-  if (!conversationId || !role || !content) {
-    return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
-  }
-
-  const ref = await adminDb
-    .collection(`users/${user.uid}/conversations/${conversationId}/messages`)
-    .add({
-      role,
-      content,
-      ...(imageUrl ? { imageUrl } : {}),
-      createdAt: new Date().toISOString(),
-    })
-
-  // Update conversation
-  const convRef = adminDb.doc(`users/${user.uid}/conversations/${conversationId}`)
-  const conv = await convRef.get()
-  if (!conv.exists) return new Response('Conversation not found', { status: 404 })
-  const data = conv.data()
-
-  // Auto-title from first user message
-  if (role === 'user' && data?.title === 'New Chat') {
-    await convRef.update({ title: content.slice(0, 60), updatedAt: new Date().toISOString() })
-  } else {
-    await convRef.update({ updatedAt: new Date().toISOString() })
-  }
-
-  return NextResponse.json({ id: ref.id })
+  const body = await request.json().catch(() => ({}))
+  return proxyTo(request, '/messages', 'POST', body)
 }
