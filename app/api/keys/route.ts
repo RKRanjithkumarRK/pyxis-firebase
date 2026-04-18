@@ -36,6 +36,9 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const user = await verifyToken(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const provider = new URL(request.url).searchParams.get('provider') || ''
-  return proxy(request, 'DELETE', undefined, `?provider=${provider}`)
+  // HF backend expects provider in JSON body, not query param
+  const provider = new URL(request.url).searchParams.get('provider')
+    || (await request.json().catch(() => ({}))).provider
+    || ''
+  return proxy(request, 'DELETE', { provider })
 }

@@ -1,61 +1,47 @@
+/**
+ * Projects proxy — forwards to HuggingFace backend.
+ */
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth-helper'
-import { adminDb } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
+
+const HF = process.env.BACKEND_URL || 'https://ranjith00743-pyxis-one-backend.hf.space'
+
+async function hf(token: string, path: string, method: string, body?: object) {
+  const res = await fetch(`${HF}/api${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', Authorization: token },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  })
+  const data = await res.json().catch(() => ({}))
+  return NextResponse.json(data, { status: res.ok ? 200 : res.status })
+}
 
 export async function GET(request: NextRequest) {
   const user = await verifyToken(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const snap = await adminDb
-    .collection(`users/${user.uid}/projects`)
-    .orderBy('updatedAt', 'desc')
-    .get()
-
-  const projects = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-  return NextResponse.json({ projects })
+  return hf(request.headers.get('authorization') || '', '/projects', 'GET')
 }
 
 export async function POST(request: NextRequest) {
   const user = await verifyToken(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { name, tags } = await request.json()
-  const now = new Date().toISOString()
-
-  const ref = await adminDb.collection(`users/${user.uid}/projects`).add({
-    name: name || 'New Project',
-    tags: tags || [],
-    createdAt: now,
-    updatedAt: now,
-  })
-
-  return NextResponse.json({ id: ref.id })
+  const body = await request.json().catch(() => ({}))
+  return hf(request.headers.get('authorization') || '', '/projects', 'POST', body)
 }
 
 export async function PATCH(request: NextRequest) {
   const user = await verifyToken(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { id, name } = await request.json()
-  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
-
-  await adminDb.doc(`users/${user.uid}/projects/${id}`).update({
-    name: name || 'Untitled Project',
-    updatedAt: new Date().toISOString(),
-  })
-
-  return NextResponse.json({ success: true })
+  const body = await request.json().catch(() => ({}))
+  const { id, ...rest } = body
+  return hf(request.headers.get('authorization') || '', `/projects/${id}`, 'PATCH', rest)
 }
 
 export async function DELETE(request: NextRequest) {
   const user = await verifyToken(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
   const id = new URL(request.url).searchParams.get('id')
-  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
-
-  await adminDb.doc(`users/${user.uid}/projects/${id}`).delete()
-  return NextResponse.json({ success: true })
+  return hf(request.headers.get('authorization') || '', `/projects/${id}`, 'DELETE')
 }
